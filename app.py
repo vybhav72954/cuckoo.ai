@@ -236,7 +236,6 @@ def render_header():
     st.markdown("""
     <div class="main-header">
         <h1>Cuckoo.ai</h1>
-        <p>Your Research Assistant to go through Journal and Database and create detailed reports</>
         <p>Agentic AI System with Institutional Knowledge Memory</p>
     </div>
     """, unsafe_allow_html=True)
@@ -291,9 +290,9 @@ def render_sidebar():
         st.markdown("---")
         
         # Info panel
-        st.markdown('<p class="sidebar-title">ℹ️ About</p>', unsafe_allow_html=True)
+        st.markdown('<p class="sidebar-title">About</p>', unsafe_allow_html=True)
         st.info("""
-        **Team Trikala**
+        **Team Trikala - Maut se Takkar**
         
         This PoC demonstrates an Agentic AI system 
         that reduces pharmaceutical opportunity 
@@ -314,12 +313,12 @@ def render_score_cards(report: SynthesizedReport):
     cols = st.columns(6)
     
     scores = [
-        ("Overall", report.overall_score),
-        ("Market", report.market_attractiveness),
-        ("Competitive", report.competitive_intensity),
-        ("Regulatory", report.regulatory_feasibility),
-        ("Scientific", report.scientific_rationale),
-        ("Supply", report.supply_chain_feasibility),
+        ("Overall", report.overall_score, "🎯"),
+        ("Market", report.market_attractiveness, "📈"),
+        ("Competitive", report.competitive_intensity, "⚔️"),
+        ("Regulatory", report.regulatory_feasibility, "📋"),
+        ("Scientific", report.scientific_rationale, "🔬"),
+        ("Supply", report.supply_chain_feasibility, "🚚"),
     ]
     
     for col, (label, score, icon) in zip(cols, scores):
@@ -338,13 +337,13 @@ def render_recommendation_badge(score: float):
     """Render the recommendation badge"""
     if score >= 7.5:
         badge_class = "badge-proceed"
-        text = "PROCEED"
+        text = " PROCEED"
     elif score >= 5.5:
         badge_class = "badge-caution"
-        text = "PROCEED WITH CAUTION"
+        text = " PROCEED WITH CAUTION"
     else:
         badge_class = "badge-reconsider"
-        text = "RECONSIDER"
+        text = " RECONSIDER"
     
     st.markdown(f"""
     <div style="text-align: center; margin: 1.5rem 0;">
@@ -383,13 +382,13 @@ def render_agent_progress(agent_updates: list):
         status = update['status']
         
         if status == 'completed':
-            status_icon = '✅'
+            status_icon = ''
             status_class = 'done'
         elif status == 'running':
-            status_icon = '⏳'
+            status_icon = ''
             status_class = 'active'
         else:
-            status_icon = '📋'
+            status_icon = ''
             status_class = ''
         
         st.markdown(f"""
@@ -438,10 +437,10 @@ def main():
             placeholder="E.g., 'Evaluate Metformin for anti-inflammatory indications'"
         )
         
-        run_button = st.button("Start Research", use_container_width=True)
+        run_button = st.button(" Start Research", use_container_width=True)
     
     with col2:
-        st.markdown("### Quick Stats")
+        st.markdown("###  Quick Stats")
         st.metric("Agents Selected", sum(agents_selected.values()))
         st.metric("Estimated Time", "~30 seconds")
         st.metric("Data Sources", "10+")
@@ -456,7 +455,7 @@ def main():
         query.geography = geography
         
         # Progress section
-        st.markdown("### Research Progress")
+        st.markdown("###  Research Progress")
         progress_container = st.empty()
         
         with st.spinner("Executing research agents..."):
@@ -464,7 +463,7 @@ def main():
         
         # Store report in session state
         st.session_state['report'] = report
-        st.success("✅ Research complete!")
+        st.success(" Research complete!")
     
     # Display results
     if 'report' in st.session_state:
@@ -482,7 +481,7 @@ def main():
         st.markdown("---")
         
         # Tabs for detailed results
-        tabs = st.tabs(["Summary", "Key Findings", "Recommendations", "Agent Details", "Export"])
+        tabs = st.tabs([" Summary", " Key Findings", " Recommendations", " Agent Details", " Export"])
         
         with tabs[0]:
             st.markdown("### Executive Summary")
@@ -513,7 +512,7 @@ def main():
                     st.markdown(f"- {opp}")
             
             with col2:
-                st.markdown("### Risks")
+                st.markdown("###  Risks")
                 for risk in report.risks:
                     st.markdown(f"- {risk}")
                 
@@ -545,7 +544,7 @@ def main():
             with col1:
                 report_json = json.dumps(report.to_dict(), indent=2, default=str)
                 st.download_button(
-                    "Download JSON",
+                    "📥 Download JSON",
                     report_json,
                     file_name=f"report_{report.report_id}.json",
                     mime="application/json"
