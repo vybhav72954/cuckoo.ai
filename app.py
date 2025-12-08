@@ -313,12 +313,12 @@ def render_score_cards(report: SynthesizedReport):
     cols = st.columns(6)
     
     scores = [
-        ("Overall", report.overall_score, "🎯"),
-        ("Market", report.market_attractiveness, "📈"),
-        ("Competitive", report.competitive_intensity, "⚔️"),
-        ("Regulatory", report.regulatory_feasibility, "📋"),
-        ("Scientific", report.scientific_rationale, "🔬"),
-        ("Supply", report.supply_chain_feasibility, "🚚"),
+        ("Overall", report.overall_score, ""),
+        ("Market", report.market_attractiveness, ""),
+        ("Competitive", report.competitive_intensity, ""),
+        ("Regulatory", report.regulatory_feasibility, ""),
+        ("Scientific", report.scientific_rationale, ""),
+        ("Supply", report.supply_chain_feasibility, ""),
     ]
     
     for col, (label, score, icon) in zip(cols, scores):
@@ -544,14 +544,32 @@ def main():
             with col1:
                 report_json = json.dumps(report.to_dict(), indent=2, default=str)
                 st.download_button(
-                    "📥 Download JSON",
+                    "Download JSON",
                     report_json,
                     file_name=f"report_{report.report_id}.json",
                     mime="application/json"
                 )
-            
+
             with col2:
-                st.button("Generate PDF Report", disabled=True, help="Coming soon!")
+                reports_dir = Path("reports")
+                pdf_files = list(reports_dir.glob("*.pdf")) if reports_dir.exists() else []
+
+                if pdf_files:
+                    selected_pdf = st.selectbox(
+                        "Select PDF Report",
+                        [p.name for p in pdf_files],
+                        key="pdf_selector"
+                    )
+
+                    with open(reports_dir / selected_pdf, "rb") as pdf_file:
+                        st.download_button(
+                            "Download PDF Report",
+                            data=pdf_file.read(),
+                            file_name=selected_pdf,
+                            mime="application/pdf"
+                        )
+                else:
+                    st.info("No PDF reports available yet")
             
             with col3:
                 st.button("Export to Excel", disabled=True, help="Coming soon!")
