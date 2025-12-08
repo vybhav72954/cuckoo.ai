@@ -1,0 +1,92 @@
+{
+  "reports": [
+    {
+      "report_id": "RPT-2024-001",
+      "created_date": "2024-08-15T14:30:00Z",
+      "molecule": "Metformin",
+      "indication": "Type 2 Diabetes + NAFLD",
+      "query": "Evaluate Metformin for NAFLD indication expansion",
+      "version": "1.0",
+      "status": "Final",
+      "executive_summary": "Metformin shows moderate promise for NAFLD treatment based on anti-inflammatory mechanisms. However, pioglitazone remains the preferred option per current AASLD guidelines.",
+      "key_findings": [
+        {
+          "category": "Clinical Evidence",
+          "finding": "3 Phase 2 trials show 20-30% reduction in liver fat content",
+          "confidence": "Medium",
+          "data_freshness": "2024-08-10"
+        },
+        {
+          "category": "Competitive Landscape",
+          "finding": "Resmetirom (Madrigal) recently approved for NASH, changing competitive dynamics",
+          "confidence": "High",
+          "data_freshness": "2024-08-15"
+        },
+        {
+          "category": "Regulatory Path",
+          "finding": "505(b)(2) pathway feasible with existing safety data",
+          "confidence": "High",
+          "data_freshness": "2024-07-20"
+        }
+      ],
+      "recommendation": "PROCEED WITH CAUTION - Consider differentiated formulation or combination strategy",
+      "score": {
+        "market_attractiveness": 7,
+        "competitive_intensity": 8,
+        "regulatory_feasibility": 8,
+        "scientific_rationale": 7,
+        "overall": 7.5
+      },
+      "created_by": "AI Research System v1.0",
+      "reviewed_by": "Dr. Sarah Chen",
+      "tags": ["metformin", "nafld", "nash", "liver", "diabetes"]
+    },
+    {
+      "report_id": "RPT-2024-002",
+      "created_date": "2024-09-20T10:15:00Z",
+      "molecule": "Metformin",
+      "indication": "Anti-Aging",
+      "query": "Assess Metformin for anti-aging longevity indication",
+      "version": "1.0",
+      "status": "Final",
+      "executive_summary": "TAME trial data pending. Strong mechanistic rationale via AMPK activation and cellular senescence reduction. Regulatory pathway unclear for 'aging' as an indication.",
+      "key_findings": [
+        {
+          "category": "Clinical Evidence",
+          "finding": "Observational data shows 15-30% reduction in all-cause mortality in diabetic patients on metformin",
+          "confidence": "Medium",
+          "data_freshness": "2024-09-15"
+        },
+        {
+          "category": "Regulatory Path",
+          "finding": "FDA has not approved 'aging' as a disease indication - surrogate endpoints needed",
+          "confidence": "High",
+          "data_freshness": "2024-09-10"
+        },
+        {
+          "category": "Market Potential",
+          "finding": "Anti-aging market projected at $93B by 2030, but reimbursement uncertain",
+          "confidence": "Medium",
+          "data_freshness": "2024-09-01"
+        }
+      ],
+      "recommendation": "MONITOR - Wait for TAME trial results before committing resources",
+      "score": {
+        "market_attractiveness": 9,
+        "competitive_intensity": 4,
+        "regulatory_feasibility": 3,
+        "scientific_rationale": 8,
+        "overall": 6.0
+      },
+      "created_by": "AI Research System v1.0",
+      "reviewed_by": "Dr. James Wilson",
+      "tags": ["metformin", "aging", "longevity", "tame", "ampk"]
+    }
+  ],
+  "semantic_index": {
+    "inflammation_related": ["RPT-2024-001"],
+    "metformin": ["RPT-2024-001", "RPT-2024-002"],
+    "metabolic": ["RPT-2024-001", "RPT-2024-002"],
+    "novel_indication": ["RPT-2024-001", "RPT-2024-002"]
+  }
+}

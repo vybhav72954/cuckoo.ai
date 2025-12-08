@@ -1,0 +1,86 @@
+{
+  "report_id": "RPT-20251206-26b328a0",
+  "query": {
+    "molecule": "Metformin",
+    "indication": "Anti-inflammatory",
+    "raw_query": "Evaluate Metformin for anti-inflammatory indications"
+  },
+  "created_at": "2025-12-06T15:08:52.992858",
+  "version": "1.0",
+  "scores": {
+    "market_attractiveness": 7.5,
+    "competitive_intensity": 6,
+    "regulatory_feasibility": 8.0,
+    "scientific_rationale": 8,
+    "supply_chain_feasibility": 7.0,
+    "overall": 7.375
+  },
+  "executive_summary": "**Opportunity Assessment: Metformin for Anti-inflammatory**\n\n**Recommendation: PROCEED WITH CAUTION** (Score: 7.4/10)\n\nMetformin presents a promising opportunity for Anti-inflammatory indication expansion. \n\nKey highlights:\n- 5 relevant clinical trials identified, indicating strong research interest\n- Current market size: $3.2B with expansion potential\n- Regulatory pathway: Clear via 505(b)(2)\n- Supply chain: Well-established\n\nThe analysis draws from 24 sources across clinical trials, patents, market data, and literature.",
+  "key_findings": [
+    {
+      "category": "Clinical Evidence",
+      "finding": "Late-stage trials indicate mature evidence base",
+      "source": "Clinical Trials Agent",
+      "confidence": 0.85
+    },
+    {
+      "category": "Clinical Evidence",
+      "finding": "4 trials actively recruiting - competitive landscape evolving",
+      "source": "Clinical Trials Agent",
+      "confidence": 0.85
+    },
+    {
+      "category": "IP Landscape",
+      "finding": "Novel formulation could provide differentiation and patent protection",
+      "source": "Patent Agent",
+      "confidence": 0.9
+    },
+    {
+      "category": "Market Intelligence",
+      "finding": "Global market size: $3.2B (2024)",
+      "source": "IQVIA Agent",
+      "confidence": 0.85
+    },
+    {
+      "category": "Market Intelligence",
+      "finding": "Projected 2030: $4.1B (4.2% CAGR)",
+      "source": "IQVIA Agent",
+      "confidence": 0.85
+    },
+    {
+      "category": "Scientific Literature",
+      "finding": "Found 3 relevant publications",
+      "source": "Web Intelligence Agent",
+      "confidence": 0.8
+    },
+    {
+      "category": "Scientific Literature",
+      "finding": "Strong mechanistic rationale in peer-reviewed literature",
+      "source": "Web Intelligence Agent",
+      "confidence": 0.8
+    }
+  ],
+  "recommendations": [
+    "Conduct additional competitive analysis",
+    "Evaluate differentiation strategies"
+  ],
+  "risks": [
+    "1 active method-of-use patents may block new indication",
+    "Supply chain concentration risk - consider alternative sources"
+  ],
+  "opportunities": [
+    "Novel formulation could provide differentiation and patent protection"
+  ],
+  "next_steps": [
+    "Schedule pre-IND meeting with FDA for Anti-inflammatory indication",
+    "Initiate Phase 2 clinical study design",
+    "Develop formulation strategy for differentiation",
+    "Conduct detailed commercial assessment"
+  ],
+  "metadata": {
+    "total_sources": 24,
+    "execution_time_ms": 2608.562,
+    "data_freshness": "2025-12-06",
+    "reused_from_archive": true
+  }
+}

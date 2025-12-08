@@ -1,0 +1,205 @@
+{
+  "molecules": {
+    "metformin": {
+      "name": "Metformin",
+      "generic_name": "Metformin Hydrochloride",
+      "brand_names": ["Glucophage", "Fortamet", "Glumetza", "Riomet"],
+      "therapeutic_class": "Biguanides",
+      "mechanism": "Decreases hepatic glucose production, decreases intestinal absorption of glucose, improves insulin sensitivity",
+      "current_indications": [
+        "Type 2 Diabetes Mellitus",
+        "Polycystic Ovary Syndrome (off-label)"
+      ],
+      "molecular_weight": 165.63,
+      "cas_number": "1115-70-4",
+      "first_approval_date": "1994-12-29",
+      "patent_status": "Generic"
+    }
+  },
+  "clinical_trials": {
+    "metformin_inflammation": [
+      {
+        "nct_id": "NCT04510194",
+        "title": "Metformin for Anti-inflammatory Effects in COVID-19",
+        "status": "Completed",
+        "phase": "Phase 3",
+        "enrollment": 1323,
+        "start_date": "2020-08-01",
+        "completion_date": "2023-03-15",
+        "sponsor": "University of Minnesota",
+        "primary_outcome": "Reduction in inflammatory markers",
+        "results_summary": "Significant reduction in CRP levels observed"
+      },
+      {
+        "nct_id": "NCT03685721",
+        "title": "Metformin in Rheumatoid Arthritis",
+        "status": "Recruiting",
+        "phase": "Phase 2",
+        "enrollment": 200,
+        "start_date": "2023-01-15",
+        "completion_date": "2025-12-31",
+        "sponsor": "Johns Hopkins University",
+        "primary_outcome": "DAS28-CRP improvement",
+        "results_summary": null
+      },
+      {
+        "nct_id": "NCT04098666",
+        "title": "Anti-inflammatory Effects of Metformin in NAFLD",
+        "status": "Active, not recruiting",
+        "phase": "Phase 2",
+        "enrollment": 150,
+        "start_date": "2021-06-01",
+        "completion_date": "2024-12-01",
+        "sponsor": "Cleveland Clinic",
+        "primary_outcome": "Liver inflammation reduction",
+        "results_summary": null
+      },
+      {
+        "nct_id": "NCT05231265",
+        "title": "Metformin and Inflammaging in Elderly",
+        "status": "Recruiting",
+        "phase": "Phase 2",
+        "enrollment": 500,
+        "start_date": "2022-09-01",
+        "completion_date": "2026-08-31",
+        "sponsor": "NIH/NIA",
+        "primary_outcome": "Inflammatory biomarker panel improvement",
+        "results_summary": null
+      },
+      {
+        "nct_id": "NCT03451162",
+        "title": "TAME Trial - Targeting Aging with Metformin",
+        "status": "Not yet recruiting",
+        "phase": "Phase 3",
+        "enrollment": 3000,
+        "start_date": "2024-01-01",
+        "completion_date": "2030-12-31",
+        "sponsor": "American Federation for Aging Research",
+        "primary_outcome": "Age-related disease prevention",
+        "results_summary": null
+      }
+    ]
+  },
+  "patents": {
+    "metformin": [
+      {
+        "patent_number": "US4080472",
+        "title": "Metformin Hydrochloride Composition",
+        "status": "Expired",
+        "expiry_date": "1995-03-21",
+        "holder": "Bristol-Myers Squibb",
+        "type": "Compound"
+      },
+      {
+        "patent_number": "US6099876",
+        "title": "Extended Release Metformin Formulation",
+        "status": "Expired",
+        "expiry_date": "2017-08-14",
+        "holder": "Merck Sante",
+        "type": "Formulation"
+      },
+      {
+        "patent_number": "US10987321",
+        "title": "Metformin Combination for Anti-inflammatory Use",
+        "status": "Active",
+        "expiry_date": "2038-05-12",
+        "holder": "University of California",
+        "type": "Method of Use"
+      },
+      {
+        "patent_number": "US11234567",
+        "title": "Metformin Nanoparticle Delivery System",
+        "status": "Active",
+        "expiry_date": "2041-11-03",
+        "holder": "MIT",
+        "type": "Formulation"
+      }
+    ]
+  },
+  "market_data": {
+    "metformin": {
+      "global_market_size_2024": 3200000000,
+      "cagr_2024_2030": 4.2,
+      "top_markets": [
+        {"region": "North America", "share": 32, "value": 1024000000},
+        {"region": "Europe", "share": 28, "value": 896000000},
+        {"region": "Asia Pacific", "share": 25, "value": 800000000},
+        {"region": "Latin America", "share": 10, "value": 320000000},
+        {"region": "Middle East & Africa", "share": 5, "value": 160000000}
+      ],
+      "competition": [
+        {"company": "Merck", "brand": "Glucophage", "market_share": 12},
+        {"company": "Bristol-Myers Squibb", "brand": "Glucophage XR", "market_share": 8},
+        {"company": "Teva", "brand": "Generic Metformin", "market_share": 15},
+        {"company": "Sun Pharma", "brand": "Generic Metformin", "market_share": 10},
+        {"company": "Others", "brand": "Various", "market_share": 55}
+      ],
+      "pricing": {
+        "branded_avg_monthly": 45.50,
+        "generic_avg_monthly": 8.25,
+        "price_trend": "stable"
+      }
+    }
+  },
+  "exim_data": {
+    "metformin": {
+      "api_sources": [
+        {"country": "India", "share": 65, "major_suppliers": ["Lupin", "Aurobindo", "Cipla"]},
+        {"country": "China", "share": 25, "major_suppliers": ["Harbin Pharma", "CSPC"]},
+        {"country": "Europe", "share": 10, "major_suppliers": ["Merck KGaA"]}
+      ],
+      "import_trends": {
+        "2022": {"volume_mt": 12500, "value_usd": 45000000},
+        "2023": {"volume_mt": 13200, "value_usd": 47500000},
+        "2024": {"volume_mt": 14100, "value_usd": 51000000}
+      },
+      "supply_risk": "Low",
+      "lead_time_days": 45,
+      "quality_certifications": ["WHO GMP", "FDA Approved", "EU GMP"]
+    }
+  },
+  "literature": {
+    "metformin_inflammation": [
+      {
+        "pmid": "34567890",
+        "title": "Metformin's Anti-inflammatory Mechanisms: A Comprehensive Review",
+        "journal": "Nature Reviews Drug Discovery",
+        "year": 2024,
+        "citations": 156,
+        "key_findings": "AMPK activation reduces NF-κB signaling and inflammatory cytokines"
+      },
+      {
+        "pmid": "34567891",
+        "title": "Repurposing Metformin for Inflammatory Diseases",
+        "journal": "The Lancet",
+        "year": 2023,
+        "citations": 342,
+        "key_findings": "Strong evidence for anti-inflammatory effects across multiple disease states"
+      },
+      {
+        "pmid": "34567892",
+        "title": "Metformin in Autoimmune Disease: Systematic Review",
+        "journal": "Annals of Rheumatic Diseases",
+        "year": 2024,
+        "citations": 89,
+        "key_findings": "Promising results in RA, SLE, and psoriasis patients"
+      }
+    ]
+  },
+  "regulatory_guidelines": {
+    "metformin_inflammation": [
+      {
+        "agency": "FDA",
+        "guidance": "505(b)(2) pathway suitable for new indication",
+        "date": "2024-06-15",
+        "status": "Active"
+      },
+      {
+        "agency": "EMA",
+        "guidance": "Hybrid application pathway available",
+        "date": "2024-03-20",
+        "status": "Active"
+      }
+    ]
+  }
+}
