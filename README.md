@@ -1,11 +1,10 @@
-# 🧬 Pharma AI - Agentic AI for Rapid Pharmaceutical Opportunity Assessment
+# Cuckoo.ai - Agentic AI for Rapid Pharmaceutical Opportunity Assessment
 
-> **EY Techathon 6.0 - Round 2 Submission**  
 > Proof of Concept demonstrating an AI-powered system for accelerating pharmaceutical R&D decisions
 
 ---
 
-## 🎯 Problem Statement
+## Problem Statement
 
 Pharmaceutical companies lose significant time and resources due to **repeated, manual evaluations** of drug opportunities:
 
@@ -20,7 +19,7 @@ Pharmaceutical companies lose significant time and resources due to **repeated, 
 
 ---
 
-## 💡 Our Solution
+## Our Solution
 
 An **Agentic AI System with Institutional Knowledge Memory** that:
 
@@ -35,7 +34,7 @@ Unlike traditional AI assistants, our system **checks institutional memory first
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # Install dependencies
@@ -50,16 +49,16 @@ streamlit run app.py
 
 ---
 
-## 👥 Team
+## Team
 
-| Name | Role |
-|------|------|
-| Pranav Taneja | Solution Architect |
+| Name | Role                                 |
+|------|--------------------------------------|
+| Pranav Taneja | Prompt Engineering                   |
 | Sanket Wathore | Deep Learning & Healthcare Analytics |
-| Sneha Yadav | Data Preparation & Visualization |
-| Gudaru Pragathi | Data Management |
-| Vybhav Chaturvedi | Agentic AI & Prompt Engineering |
+| Sneha Yadav | Data Preparation & Visualization     |
+| Gudaru Pragathi | Data Management                      |
+| Vybhav Chaturvedi | Solution Architect                   |
 
 ---
 
-**Built for EY Techathon 6.0**
+**Built for Resume**
