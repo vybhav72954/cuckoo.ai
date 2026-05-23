@@ -15,6 +15,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.agents import MasterAgent, ResearchQuery, SynthesizedReport
+from config import recommendation_for
 
 
 def print_header():
@@ -86,15 +87,12 @@ async def run_demo():
     print_section("📊 Assessment Results")
     
     # Overall recommendation
-    if report.overall_score >= 7.5:
-        rec = "✅ PROCEED"
-        rec_desc = "Strong opportunity - proceed with detailed planning"
-    elif report.overall_score >= 5.5:
-        rec = "⚠️  PROCEED WITH CAUTION"
-        rec_desc = "Moderate opportunity - additional analysis recommended"
-    else:
-        rec = "❌ RECONSIDER"
-        rec_desc = "Weak opportunity - consider alternatives"
+    verdict = recommendation_for(report.overall_score)
+    rec, rec_desc = {
+        "PROCEED": ("✅ PROCEED", "Strong opportunity - proceed with detailed planning"),
+        "PROCEED WITH CAUTION": ("⚠️  PROCEED WITH CAUTION", "Moderate opportunity - additional analysis recommended"),
+        "RECONSIDER": ("❌ RECONSIDER", "Weak opportunity - consider alternatives"),
+    }[verdict]
     
     print(f"\n  Recommendation: {rec}")
     print(f"  {rec_desc}")

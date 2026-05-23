@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 
+from config import recommendation_for
+
 # Color scheme
 COLORS = {
     'primary': HexColor('#1E3A5F'),
@@ -194,15 +196,12 @@ def generate_pdf_report(report_data: Dict[str, Any], output_path: str) -> str:
     
     # Recommendation box
     overall_score = report_data.get('scores', {}).get('overall', 0)
-    if overall_score >= 7.5:
-        rec_text = "PROCEED"
-        rec_color = COLORS['success']
-    elif overall_score >= 5.5:
-        rec_text = "PROCEED WITH CAUTION"
-        rec_color = COLORS['warning']
-    else:
-        rec_text = "RECONSIDER"
-        rec_color = COLORS['danger']
+    rec_text = recommendation_for(overall_score)
+    rec_color = {
+        "PROCEED": COLORS['success'],
+        "PROCEED WITH CAUTION": COLORS['warning'],
+        "RECONSIDER": COLORS['danger'],
+    }[rec_text]
     
     rec_table = Table([[rec_text]], colWidths=[4*inch])
     rec_table.setStyle(TableStyle([

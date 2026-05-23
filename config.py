@@ -88,3 +88,18 @@ AGENTS = {
         'icon': '🌐'
     }
 }
+
+# Recommendation thresholds — single source of truth for the
+# PROCEED / PROCEED WITH CAUTION / RECONSIDER verdict shown across the
+# Streamlit UI, the PDF report, and the CLI demos. Keep all verdict logic
+# routed through recommendation_for() so these never drift apart again.
+PROCEED_THRESHOLD = 7.5
+CAUTION_THRESHOLD = 5.5
+
+def recommendation_for(score: float) -> str:
+    """Map an overall opportunity score (0-10) to a recommendation verdict."""
+    if score >= PROCEED_THRESHOLD:
+        return "PROCEED"
+    if score >= CAUTION_THRESHOLD:
+        return "PROCEED WITH CAUTION"
+    return "RECONSIDER"

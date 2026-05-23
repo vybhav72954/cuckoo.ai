@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.agents import MasterAgent, ResearchQuery, SynthesizedReport
-from config import COLORS, AGENTS
+from config import COLORS, AGENTS, recommendation_for
 
 # Page configuration
 st.set_page_config(
@@ -335,19 +335,16 @@ def render_score_cards(report: SynthesizedReport):
 
 def render_recommendation_badge(score: float):
     """Render the recommendation badge"""
-    if score >= 7.5:
-        badge_class = "badge-proceed"
-        text = " PROCEED"
-    elif score >= 5.5:
-        badge_class = "badge-caution"
-        text = " PROCEED WITH CAUTION"
-    else:
-        badge_class = "badge-reconsider"
-        text = " RECONSIDER"
-    
+    verdict = recommendation_for(score)
+    badge_class = {
+        "PROCEED": "badge-proceed",
+        "PROCEED WITH CAUTION": "badge-caution",
+        "RECONSIDER": "badge-reconsider",
+    }[verdict]
+
     st.markdown(f"""
     <div style="text-align: center; margin: 1.5rem 0;">
-        <span class="recommendation-badge {badge_class}">{text}</span>
+        <span class="recommendation-badge {badge_class}">{verdict}</span>
     </div>
     """, unsafe_allow_html=True)
 
