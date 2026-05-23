@@ -78,12 +78,10 @@ class InternalKnowledgeAgent(BaseAgent):
                 "freshness": "Recent" if "2024" in report["date"] else "May need refresh"
             })
         
-        # Areas that need fresh research
-        if query.indication.lower() == "inflammation" or query.indication.lower() == "anti-inflammatory":
-            outdated_areas = [
-                "Clinical trial landscape - last checked 60+ days ago",
-                "Competitive product updates - market dynamics may have changed"
-            ]
+        # Domains flagged as stale -> MasterAgent force-refreshes these regardless of
+        # age. Emitted as agent ids so the orchestrator can act on them directly.
+        if query.indication.lower() in ("inflammation", "anti-inflammatory"):
+            outdated_areas = ["clinical_trials", "iqvia_insights"]
 
         # How stale is the prior research? Drives delta-refresh in MasterAgent.
         last_research_date = None

@@ -208,9 +208,14 @@ class MasterAgent:
             return all_agents, []
 
         thresholds = _freshness_thresholds()
+        # Domains the knowledge agent explicitly flagged as stale must refresh
+        # regardless of age. Intersect with known agents so any prose entries are
+        # ignored rather than treated as agent ids.
+        force_refresh = set(internal_result.data.get("areas_needing_refresh", [])) & set(all_agents)
+
         agents_to_run, agents_reused = [], []
         for agent_id in all_agents:
-            if days_since > thresholds[agent_id]:
+            if days_since > thresholds[agent_id] or agent_id in force_refresh:
                 agents_to_run.append(agent_id)
             else:
                 agents_reused.append(agent_id)
@@ -226,18 +231,27 @@ class MasterAgent:
         """
         reports = internal_result.data.get("relevant_reports", [])
         reused_score = None
+        prior_scores = {}
         score_key = PRIOR_SCORE_KEY.get(agent_id)
-        if score_key and reports:
+        if reports:
             latest = max(reports, key=lambda r: r.get("date") or "")
-            reused_score = latest.get("scores", {}).get(score_key)
+            prior_scores = latest.get("scores", {})
+            if score_key:
+                reused_score = prior_scores.get(score_key)
 
         return AgentResult(
             agent_name=self.agents[agent_id].name,
             status=AgentStatus.CACHED,
-            data={"reused": True, "reused_score": reused_score,
-                  "source": "institutional_memory"},
+            data={
+                "reused": True,
+                "reused_score": reused_score,
+                "source": "institutional_memory",
+                # Snapshot of the prior research so synthesis can read the reused
+                # domain instead of dropping it.
+                "archived_payload": {"reports": reports, "scores": prior_scores},
+            },
             confidence_score=0.7,
-            source_count=0,
+            source_count=internal_result.source_count,
             cached=True,
             data_freshness_date=internal_result.data.get("last_research_date")
         )
@@ -294,9 +308,7 @@ class MasterAgent:
             total_sources=total_sources,
             execution_time_ms=execution_time,
             data_freshness=datetime.now().strftime("%Y-%m-%d"),
-            reused_from_archive=results.get("internal_knowledge", AgentResult(
-                agent_name="", status=AgentStatus.IDLE, data={}
-            )).data.get("prior_research_exists", False),
+            reused_from_archive=bool(agents_reused),
             agents_refreshed=agents_refreshed,
             agents_reused=agents_reused
         )
