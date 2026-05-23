@@ -135,17 +135,24 @@ class ClinicalTrialsAgent(BaseAgent):
         # Analyze trials
         phase_distribution = {"Phase 1": 0, "Phase 2": 0, "Phase 3": 0, "Phase 4": 0}
         status_distribution = {"Completed": 0, "Recruiting": 0, "Active": 0, "Not yet recruiting": 0}
-        
+
+        # Exact (normalized) status->bucket map. Substring matching previously
+        # miscounted "Active, not recruiting" and "Not yet recruiting" as Recruiting.
+        status_buckets = {
+            "completed": "Completed",
+            "recruiting": "Recruiting",
+            "active, not recruiting": "Active",
+            "not yet recruiting": "Not yet recruiting",
+        }
+
         for trial in trials:
             phase = trial.get("phase", "Unknown")
             if phase in phase_distribution:
                 phase_distribution[phase] += 1
-            
-            status = trial.get("status", "Unknown")
-            for key in status_distribution:
-                if key.lower() in status.lower():
-                    status_distribution[key] += 1
-                    break
+
+            bucket = status_buckets.get(trial.get("status", "").strip().lower())
+            if bucket:
+                status_distribution[bucket] += 1
         
         # Generate insights
         insights = []
