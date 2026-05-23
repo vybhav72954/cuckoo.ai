@@ -7,6 +7,7 @@ import streamlit as st
 import asyncio
 import json
 import io
+import logging
 import time
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +19,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from src.agents import MasterAgent, ResearchQuery, SynthesizedReport
 from src.reports.pdf_generator import generate_pdf_report
 from config import COLORS, AGENTS, recommendation_for
+
+logger = logging.getLogger(__name__)
 
 # Page configuration
 st.set_page_config(
@@ -566,8 +569,11 @@ def main():
                         file_name=f"{report.report_id}.pdf",
                         mime="application/pdf"
                     )
-                except Exception as e:
-                    st.error(f"PDF generation failed: {e}")
+                except Exception:
+                    # Log the full traceback server-side; show users a generic message
+                    # rather than leaking raw exception details.
+                    logger.exception("PDF generation failed for report %s", report.report_id)
+                    st.error("PDF generation failed. Please try again or contact support.")
             
             with col3:
                 st.button("Export to Excel", disabled=True, help="Coming soon!")
