@@ -562,15 +562,18 @@ def main():
                 # Tracking the report id lets the cache replace rather than grow, and
                 # regenerate only when the displayed report changes.
                 if st.session_state.get("pdf_report_id") != report.report_id:
-                    st.session_state["pdf_bytes"] = None
                     try:
                         pdf_buffer = io.BytesIO()
                         generate_pdf_report(report.to_dict(), pdf_buffer)
                         st.session_state["pdf_bytes"] = pdf_buffer.getvalue()
+                        # Mark cached only on success, so a failure can retry on a
+                        # later rerun instead of being stuck.
+                        st.session_state["pdf_report_id"] = report.report_id
                     except Exception:
-                        # Log the full traceback server-side; users get a generic msg.
+                        # Log server-side; clear any stale bytes so we never serve a
+                        # previous report's PDF, and leave the report uncached to retry.
                         logger.exception("PDF generation failed for report %s", report.report_id)
-                    st.session_state["pdf_report_id"] = report.report_id
+                        st.session_state["pdf_bytes"] = None
 
                 pdf_bytes = st.session_state.get("pdf_bytes")
                 if pdf_bytes is not None:
