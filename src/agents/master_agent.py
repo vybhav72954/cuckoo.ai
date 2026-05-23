@@ -227,7 +227,12 @@ class MasterAgent:
 
         agents_to_run, agents_reused = [], []
         for agent_id in all_agents:
-            if days_since > thresholds[agent_id] or agent_id in force_refresh:
+            # An agent can only be reused if its prior assessment can be carried
+            # forward as a score; archives carry no supply-chain score, so
+            # exim_trends (PRIOR_SCORE_KEY is None) always re-runs rather than being
+            # reused-but-unscored. This keeps the reuse decision from affecting scores.
+            unscorable_on_reuse = PRIOR_SCORE_KEY.get(agent_id) is None
+            if days_since > thresholds[agent_id] or agent_id in force_refresh or unscorable_on_reuse:
                 agents_to_run.append(agent_id)
             else:
                 agents_reused.append(agent_id)
