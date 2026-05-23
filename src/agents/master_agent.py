@@ -430,7 +430,7 @@ class MasterAgent:
 
 **Recommendation: {recommendation}** (Score: {overall:.1f}/10)
 
-{query.molecule} presents a {"promising" if overall >= 7 else "moderate"} opportunity for {query.indication} indication expansion. 
+{query.molecule} presents a {"promising" if overall >= PROCEED_THRESHOLD else "moderate"} opportunity for {query.indication} indication expansion.
 
 Key highlights:
 - {trial_count} relevant clinical trials identified, indicating {"strong" if trial_count > 3 else "growing"} research interest
