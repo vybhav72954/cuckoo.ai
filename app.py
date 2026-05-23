@@ -6,6 +6,7 @@ An Agentic AI System for Rapid Pharmaceutical Opportunity Assessment
 import streamlit as st
 import asyncio
 import json
+import io
 import time
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.agents import MasterAgent, ResearchQuery, SynthesizedReport
+from src.reports.pdf_generator import generate_pdf_report
 from config import COLORS, AGENTS, recommendation_for
 
 # Page configuration
@@ -552,25 +554,20 @@ def main():
                 )
 
             with col2:
-                reports_dir = Path("reports")
-                pdf_files = list(reports_dir.glob("*.pdf")) if reports_dir.exists() else []
-
-                if pdf_files:
-                    selected_pdf = st.selectbox(
-                        "Select PDF Report",
-                        [p.name for p in pdf_files],
-                        key="pdf_selector"
+                # Generate the PDF for the current report in-memory so the download
+                # always reflects the report just produced (and works on a fresh
+                # deploy, where no PDFs exist on disk).
+                try:
+                    pdf_buffer = io.BytesIO()
+                    generate_pdf_report(report.to_dict(), pdf_buffer)
+                    st.download_button(
+                        "Download PDF Report",
+                        data=pdf_buffer.getvalue(),
+                        file_name=f"{report.report_id}.pdf",
+                        mime="application/pdf"
                     )
-
-                    with open(reports_dir / selected_pdf, "rb") as pdf_file:
-                        st.download_button(
-                            "Download PDF Report",
-                            data=pdf_file.read(),
-                            file_name=selected_pdf,
-                            mime="application/pdf"
-                        )
-                else:
-                    st.info("No PDF reports available yet")
+                except Exception as e:
+                    st.error(f"PDF generation failed: {e}")
             
             with col3:
                 st.button("Export to Excel", disabled=True, help="Coming soon!")
