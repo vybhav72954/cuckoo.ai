@@ -56,14 +56,17 @@ class InternalKnowledgeAgent(BaseAgent):
         for report in archive.get("reports", []):
             tags = [t.lower() for t in report.get("tags", [])]
             if any(kw in tags for kw in keywords if kw):
+                score = report.get("score")
+                if not isinstance(score, dict):
+                    score = {}
                 relevant_reports.append({
                     "report_id": report.get("report_id", ""),
                     "title": f"{report.get('molecule', '?')} - {report.get('indication', '?')}",
                     "date": report.get("created_date", ""),
                     "summary": report.get("executive_summary", ""),
                     "recommendation": report.get("recommendation", ""),
-                    "score": report.get("score", {}).get("overall", 0),
-                    "scores": report.get("score", {}),
+                    "score": score.get("overall", 0),
+                    "scores": score,
                     "relevance": "High" if query.molecule.lower() in [t.lower() for t in report.get("tags", [])] else "Medium"
                 })
         
@@ -243,20 +246,30 @@ class PatentLandscapeAgent(BaseAgent):
         if formulation_patents:
             opportunities.append("Novel formulation could provide differentiation and patent protection")
         
+        # Earliest active-patent expiry = patent cliff. Parse to dates so the
+        # comparison is chronological (not lexicographic) and malformed/missing
+        # dates are dropped rather than skewing the result.
+        active_expiries = []
+        for p in active_patents:
+            try:
+                active_expiries.append(datetime.fromisoformat(p.get("expiry_date")))
+            except (TypeError, ValueError):
+                continue
+        patent_cliff_date = (
+            min(active_expiries).strftime("%Y-%m-%d") if active_expiries else "Already off-patent"
+        )
+
         execution_time = (time.time() - start_time) * 1000
         self.status = AgentStatus.COMPLETED
         self.last_run = datetime.now()
-        
+
         return self._create_result(
             data={
                 "total_patents": len(patents),
                 "active_patents": len(active_patents),
                 "expired_patents": len(expired_patents),
                 "patents": patents,
-                "patent_cliff_date": min(
-                    (p.get("expiry_date") for p in active_patents if p.get("expiry_date")),
-                    default="Already off-patent",
-                ),
+                "patent_cliff_date": patent_cliff_date,
                 "opportunities": opportunities,
                 "risks": risks,
                 "recommendation": "FAVORABLE" if len(active_patents) <= 1 else "CHALLENGING",
