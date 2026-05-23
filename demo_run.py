@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from src.agents import MasterAgent, ResearchQuery
 from src.reports.pdf_generator import generate_pdf_report
+from config import recommendation_for
 
 # ANSI color codes for terminal output
 class Colors:
@@ -116,16 +117,13 @@ async def run_demo():
     print()
     
     # Recommendation
-    if report.overall_score >= 7.5:
-        rec = "PROCEED"
-        rec_color = Colors.GREEN
-    elif report.overall_score >= 5.5:
-        rec = "PROCEED WITH CAUTION"
-        rec_color = Colors.YELLOW
-    else:
-        rec = "RECONSIDER"
-        rec_color = Colors.RED
-    
+    rec = recommendation_for(report.overall_score)
+    rec_color = {
+        "PROCEED": Colors.GREEN,
+        "PROCEED WITH CAUTION": Colors.YELLOW,
+        "RECONSIDER": Colors.RED,
+    }[rec]
+
     print(f"{Colors.BOLD}Recommendation:{Colors.ENDC} {rec_color}{Colors.BOLD}{rec}{Colors.ENDC}")
     
     print()
@@ -156,7 +154,7 @@ async def run_demo():
     
     # Save JSON
     json_path = reports_dir / f"{report.report_id}.json"
-    with open(json_path, 'w') as f:
+    with open(json_path, 'w', encoding="utf-8") as f:
         json.dump(report.to_dict(), f, indent=2, default=str)
     print(f"  {Colors.GREEN}✅ JSON saved: {json_path}{Colors.ENDC}")
     

@@ -10,7 +10,7 @@ import json
 
 from .base_agent import BaseAgent, AgentResult, AgentStatus, ResearchQuery, AgentOrchestrator
 from .research_agents import create_all_agents
-from config import Config
+from config import Config, recommendation_for, PROCEED_THRESHOLD, CAUTION_THRESHOLD
 
 
 def _freshness_thresholds() -> Dict[str, int]:
@@ -416,7 +416,7 @@ class MasterAgent:
         """Generate executive summary based on findings"""
         
         overall = scores["overall"]
-        recommendation = "PROCEED" if overall >= 7.5 else "PROCEED WITH CAUTION" if overall >= 6 else "RECONSIDER"
+        recommendation = recommendation_for(overall)
         
         # Get key stats
         clinical = results.get("clinical_trials")
@@ -430,7 +430,7 @@ class MasterAgent:
 
 **Recommendation: {recommendation}** (Score: {overall:.1f}/10)
 
-{query.molecule} presents a {"promising" if overall >= 7 else "moderate"} opportunity for {query.indication} indication expansion. 
+{query.molecule} presents a {"promising" if overall >= PROCEED_THRESHOLD else "moderate"} opportunity for {query.indication} indication expansion.
 
 Key highlights:
 - {trial_count} relevant clinical trials identified, indicating {"strong" if trial_count > 3 else "growing"} research interest
@@ -500,11 +500,11 @@ The analysis draws from {sum(r.source_count for r in results.values())} sources 
         risks = []
         opportunities = []
         
-        # Based on scores
-        if scores["overall"] >= 7.5:
+        # Based on scores (tiers match the recommendation verdict thresholds)
+        if scores["overall"] >= PROCEED_THRESHOLD:
             recommendations.append("Proceed with detailed feasibility study")
             recommendations.append("Engage regulatory affairs for pathway confirmation")
-        elif scores["overall"] >= 6:
+        elif scores["overall"] >= CAUTION_THRESHOLD:
             recommendations.append("Conduct additional competitive analysis")
             recommendations.append("Evaluate differentiation strategies")
         else:
@@ -529,14 +529,14 @@ The analysis draws from {sum(r.source_count for r in results.values())} sources 
         """Generate actionable next steps"""
         steps = []
         
-        if scores["overall"] >= 7:
+        if scores["overall"] >= PROCEED_THRESHOLD:
             steps = [
                 f"Schedule pre-IND meeting with FDA for {query.indication} indication",
                 "Initiate Phase 2 clinical study design",
                 "Develop formulation strategy for differentiation",
                 "Conduct detailed commercial assessment"
             ]
-        elif scores["overall"] >= 5.5:
+        elif scores["overall"] >= CAUTION_THRESHOLD:
             steps = [
                 "Conduct deeper competitive landscape analysis",
                 "Explore combination therapy opportunities",
