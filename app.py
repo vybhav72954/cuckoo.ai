@@ -6,6 +6,8 @@ An Agentic AI System for Rapid Pharmaceutical Opportunity Assessment
 import streamlit as st
 import asyncio
 import json
+import io
+import logging
 import time
 from datetime import datetime
 from pathlib import Path
@@ -15,7 +17,10 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.agents import MasterAgent, ResearchQuery, SynthesizedReport
+from src.reports.pdf_generator import generate_pdf_report
 from config import COLORS, AGENTS, recommendation_for
+
+logger = logging.getLogger(__name__)
 
 # Page configuration
 st.set_page_config(
@@ -552,25 +557,34 @@ def main():
                 )
 
             with col2:
-                reports_dir = Path("reports")
-                pdf_files = list(reports_dir.glob("*.pdf")) if reports_dir.exists() else []
+                # Build the current report's PDF once, caching a SINGLE entry in
+                # session state (Streamlit reruns the script on every interaction).
+                # Tracking the report id lets the cache replace rather than grow, and
+                # regenerate only when the displayed report changes.
+                if st.session_state.get("pdf_report_id") != report.report_id:
+                    try:
+                        pdf_buffer = io.BytesIO()
+                        generate_pdf_report(report.to_dict(), pdf_buffer)
+                        st.session_state["pdf_bytes"] = pdf_buffer.getvalue()
+                        # Mark cached only on success, so a failure can retry on a
+                        # later rerun instead of being stuck.
+                        st.session_state["pdf_report_id"] = report.report_id
+                    except Exception:
+                        # Log server-side; clear any stale bytes so we never serve a
+                        # previous report's PDF, and leave the report uncached to retry.
+                        logger.exception("PDF generation failed for report %s", report.report_id)
+                        st.session_state["pdf_bytes"] = None
 
-                if pdf_files:
-                    selected_pdf = st.selectbox(
-                        "Select PDF Report",
-                        [p.name for p in pdf_files],
-                        key="pdf_selector"
+                pdf_bytes = st.session_state.get("pdf_bytes")
+                if pdf_bytes is not None:
+                    st.download_button(
+                        "Download PDF Report",
+                        data=pdf_bytes,
+                        file_name=f"{report.report_id}.pdf",
+                        mime="application/pdf"
                     )
-
-                    with open(reports_dir / selected_pdf, "rb") as pdf_file:
-                        st.download_button(
-                            "Download PDF Report",
-                            data=pdf_file.read(),
-                            file_name=selected_pdf,
-                            mime="application/pdf"
-                        )
                 else:
-                    st.info("No PDF reports available yet")
+                    st.error("PDF generation failed. Please try again or contact support.")
             
             with col3:
                 st.button("Export to Excel", disabled=True, help="Coming soon!")
