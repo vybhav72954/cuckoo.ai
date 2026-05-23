@@ -150,7 +150,9 @@ class ClinicalTrialsAgent(BaseAgent):
             if phase in phase_distribution:
                 phase_distribution[phase] += 1
 
-            bucket = status_buckets.get(trial.get("status", "").strip().lower())
+            status = trial.get("status")
+            status = status.strip().lower() if isinstance(status, str) else ""
+            bucket = status_buckets.get(status)
             if bucket:
                 status_distribution[bucket] += 1
         
