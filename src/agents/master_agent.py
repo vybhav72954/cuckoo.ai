@@ -11,6 +11,11 @@ import json
 from .base_agent import BaseAgent, AgentResult, AgentStatus, ResearchQuery, AgentOrchestrator
 from .research_agents import create_all_agents
 
+# Score assigned to a dimension when the underlying agent returned no usable data.
+# Intentionally low so "no information" cannot read as a favorable result.
+NO_DATA_SCORE = 2.0
+
+
 @dataclass
 class SynthesizedReport:
     """Final synthesized report from all agents"""
@@ -99,14 +104,17 @@ class MasterAgent:
         self.current_execution: Optional[Dict] = None
         self.execution_log: List[Dict] = []
         
-    async def execute_research(self, query: ResearchQuery, 
-                               callback=None) -> SynthesizedReport:
+    async def execute_research(self, query: ResearchQuery,
+                               callback=None,
+                               selected_agents: Optional[List[str]] = None) -> SynthesizedReport:
         """
         Execute full research workflow with institutional memory check
-        
+
         Args:
             query: Structured research query
             callback: Optional callback for progress updates
+            selected_agents: If provided, only these fresh-research agents run
+                (internal_knowledge always runs for the Read-Before-Write step).
         """
         start_time = datetime.now()
         
@@ -128,7 +136,9 @@ class MasterAgent:
         
         # Step 2: Determine which agents need fresh research
         agents_to_run = self._determine_agents_to_run(internal_result, query)
-        update_progress("master", "planning", 
+        if selected_agents is not None:
+            agents_to_run = [a for a in agents_to_run if a in selected_agents]
+        update_progress("master", "planning",
                        f"Running {len(agents_to_run)} agents for fresh research")
         
         # Step 3: Execute research agents in parallel
@@ -225,44 +235,47 @@ class MasterAgent:
         """Calculate opportunity scores based on agent findings"""
         scores = {}
         
+        # Each dimension scores only when its agent actually returned data; otherwise
+        # NO_DATA_SCORE, so a molecule we know nothing about can't look favorable.
+
         # Market attractiveness (from IQVIA)
         iqvia = results.get("iqvia_insights")
-        if iqvia and iqvia.status == AgentStatus.COMPLETED:
+        if iqvia and iqvia.status == AgentStatus.COMPLETED and iqvia.data.get("market_size_2024", 0) > 0:
             scores["market"] = iqvia.data.get("opportunity_score", 5.0)
         else:
-            scores["market"] = 5.0
-        
-        # Competitive intensity (from IQVIA + Patents)
+            scores["market"] = NO_DATA_SCORE
+
+        # Competitive intensity (from Patents)
         patent = results.get("patent_landscape")
-        if patent and patent.status == AgentStatus.COMPLETED:
+        if patent and patent.status == AgentStatus.COMPLETED and patent.data.get("total_patents", 0) > 0:
             active_patents = patent.data.get("active_patents", 0)
             scores["competitive"] = 10 - min(active_patents * 2, 5)
         else:
-            scores["competitive"] = 5.0
-        
+            scores["competitive"] = NO_DATA_SCORE
+
         # Regulatory feasibility (from Web Intelligence)
         web = results.get("web_intelligence")
-        if web and web.status == AgentStatus.COMPLETED:
+        if web and web.status == AgentStatus.COMPLETED and (web.data.get("regulatory_guidelines") or web.data.get("literature")):
             guidelines = web.data.get("regulatory_guidelines", [])
             scores["regulatory"] = 8.0 if guidelines else 6.0
         else:
-            scores["regulatory"] = 6.0
-        
+            scores["regulatory"] = NO_DATA_SCORE
+
         # Scientific rationale (from Clinical Trials + Literature)
         clinical = results.get("clinical_trials")
-        if clinical and clinical.status == AgentStatus.COMPLETED:
+        if clinical and clinical.status == AgentStatus.COMPLETED and clinical.data.get("total_trials", 0) > 0:
             phase3_trials = clinical.data.get("phase_distribution", {}).get("Phase 3", 0)
             scores["scientific"] = min(6 + phase3_trials, 10)
         else:
-            scores["scientific"] = 6.0
-        
+            scores["scientific"] = NO_DATA_SCORE
+
         # Supply chain feasibility (from EXIM)
         exim = results.get("exim_trends")
-        if exim and exim.status == AgentStatus.COMPLETED:
+        if exim and exim.status == AgentStatus.COMPLETED and exim.data.get("api_sources"):
             feasibility = exim.data.get("supply_feasibility", "Medium")
             scores["supply"] = 9.0 if feasibility == "High" else 7.0 if feasibility == "Medium" else 5.0
         else:
-            scores["supply"] = 6.0
+            scores["supply"] = NO_DATA_SCORE
         
         # Overall weighted score
         weights = {"market": 0.25, "competitive": 0.2, "regulatory": 0.2, 
