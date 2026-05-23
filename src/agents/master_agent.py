@@ -245,9 +245,11 @@ class MasterAgent:
         else:
             scores["market"] = NO_DATA_SCORE
 
-        # Competitive intensity (from Patents)
+        # Competitive intensity (from Patents). A completed result that reports
+        # total_patents (including 0 = off-patent, a favorable FTO signal) is real
+        # data; only a missing/failed patent agent falls back to NO_DATA_SCORE.
         patent = results.get("patent_landscape")
-        if patent and patent.status == AgentStatus.COMPLETED and patent.data.get("total_patents", 0) > 0:
+        if patent and patent.status == AgentStatus.COMPLETED and patent.data.get("total_patents") is not None:
             active_patents = patent.data.get("active_patents", 0)
             scores["competitive"] = 10 - min(active_patents * 2, 5)
         else:
