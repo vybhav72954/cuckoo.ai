@@ -36,6 +36,11 @@ PRIOR_SCORE_KEY = {
 }
 
 
+# Score assigned to a dimension when the underlying agent returned no usable data.
+# Intentionally low so "no information" cannot read as a favorable result.
+NO_DATA_SCORE = 2.0
+
+
 @dataclass
 class SynthesizedReport:
     """Final synthesized report from all agents"""
@@ -128,14 +133,17 @@ class MasterAgent:
         self.current_execution: Optional[Dict] = None
         self.execution_log: List[Dict] = []
         
-    async def execute_research(self, query: ResearchQuery, 
-                               callback=None) -> SynthesizedReport:
+    async def execute_research(self, query: ResearchQuery,
+                               callback=None,
+                               selected_agents: Optional[List[str]] = None) -> SynthesizedReport:
         """
         Execute full research workflow with institutional memory check
-        
+
         Args:
             query: Structured research query
             callback: Optional callback for progress updates
+            selected_agents: If provided, only these fresh-research agents run
+                (internal_knowledge always runs for the Read-Before-Write step).
         """
         start_time = datetime.now()
         
@@ -155,8 +163,12 @@ class MasterAgent:
         update_progress("internal_knowledge", "completed", 
                        f"Found {len(internal_result.data.get('relevant_reports', []))} related reports")
         
-        # Step 2: Delta refresh — decide which agents to re-run vs reuse from archive
+        # Step 2: Delta refresh — decide which agents to re-run vs reuse from archive,
+        # then drop any the caller did not select.
         agents_to_run, agents_reused = self._determine_agents_to_run(internal_result, query)
+        if selected_agents is not None:
+            agents_to_run = [a for a in agents_to_run if a in selected_agents]
+            agents_reused = [a for a in agents_reused if a in selected_agents]
         update_progress("master", "planning",
                        f"Refreshing {len(agents_to_run)} agents, "
                        f"reusing {len(agents_reused)} from archive")
@@ -215,7 +227,12 @@ class MasterAgent:
 
         agents_to_run, agents_reused = [], []
         for agent_id in all_agents:
-            if days_since > thresholds[agent_id] or agent_id in force_refresh:
+            # An agent can only be reused if its prior assessment can be carried
+            # forward as a score; archives carry no supply-chain score, so
+            # exim_trends (PRIOR_SCORE_KEY is None) always re-runs rather than being
+            # reused-but-unscored. This keeps the reuse decision from affecting scores.
+            unscorable_on_reuse = PRIOR_SCORE_KEY.get(agent_id) is None
+            if days_since > thresholds[agent_id] or agent_id in force_refresh or unscorable_on_reuse:
                 agents_to_run.append(agent_id)
             else:
                 agents_reused.append(agent_id)
@@ -319,8 +336,12 @@ class MasterAgent:
         """Calculate opportunity scores based on agent findings"""
         scores = {}
 
+        # Per dimension: (1) carried-forward score if the agent was reused from
+        # archive, else (2) live formula if the agent returned real data, else
+        # (3) NO_DATA_SCORE so a molecule we know nothing about can't look favorable.
+
         def reused_score(agent_id):
-            """Return the carried-forward prior score if this agent was reused, else None."""
+            """Carried-forward prior score if this agent was reused, else None."""
             r = results.get(agent_id)
             if r is not None and r.status == AgentStatus.CACHED:
                 return r.data.get("reused_score")
@@ -328,52 +349,59 @@ class MasterAgent:
 
         # Market attractiveness (from IQVIA)
         iqvia = results.get("iqvia_insights")
-        if reused_score("iqvia_insights") is not None:
-            scores["market"] = reused_score("iqvia_insights")
-        elif iqvia and iqvia.status == AgentStatus.COMPLETED:
+        iqvia_reused = reused_score("iqvia_insights")
+        if iqvia_reused is not None:
+            scores["market"] = iqvia_reused
+        elif iqvia and iqvia.status == AgentStatus.COMPLETED and iqvia.data.get("market_size_2024", 0) > 0:
             scores["market"] = iqvia.data.get("opportunity_score", 5.0)
         else:
-            scores["market"] = 5.0
+            scores["market"] = NO_DATA_SCORE
 
-        # Competitive intensity (from IQVIA + Patents)
+        # Competitive intensity (from Patents). total_patents present (including
+        # 0 = off-patent, a favorable FTO signal) is real data; only a missing/
+        # failed patent agent falls back to NO_DATA_SCORE.
         patent = results.get("patent_landscape")
-        if reused_score("patent_landscape") is not None:
-            scores["competitive"] = reused_score("patent_landscape")
-        elif patent and patent.status == AgentStatus.COMPLETED:
+        patent_reused = reused_score("patent_landscape")
+        if patent_reused is not None:
+            scores["competitive"] = patent_reused
+        elif patent and patent.status == AgentStatus.COMPLETED and patent.data.get("total_patents") is not None:
             active_patents = patent.data.get("active_patents", 0)
             scores["competitive"] = 10 - min(active_patents * 2, 5)
         else:
-            scores["competitive"] = 5.0
+            scores["competitive"] = NO_DATA_SCORE
 
         # Regulatory feasibility (from Web Intelligence)
         web = results.get("web_intelligence")
-        if reused_score("web_intelligence") is not None:
-            scores["regulatory"] = reused_score("web_intelligence")
-        elif web and web.status == AgentStatus.COMPLETED:
+        web_reused = reused_score("web_intelligence")
+        if web_reused is not None:
+            scores["regulatory"] = web_reused
+        elif web and web.status == AgentStatus.COMPLETED and (web.data.get("regulatory_guidelines") or web.data.get("literature")):
             guidelines = web.data.get("regulatory_guidelines", [])
             scores["regulatory"] = 8.0 if guidelines else 6.0
         else:
-            scores["regulatory"] = 6.0
+            scores["regulatory"] = NO_DATA_SCORE
 
         # Scientific rationale (from Clinical Trials + Literature)
         clinical = results.get("clinical_trials")
-        if reused_score("clinical_trials") is not None:
-            scores["scientific"] = reused_score("clinical_trials")
-        elif clinical and clinical.status == AgentStatus.COMPLETED:
+        clinical_reused = reused_score("clinical_trials")
+        if clinical_reused is not None:
+            scores["scientific"] = clinical_reused
+        elif clinical and clinical.status == AgentStatus.COMPLETED and clinical.data.get("total_trials", 0) > 0:
             phase3_trials = clinical.data.get("phase_distribution", {}).get("Phase 3", 0)
             scores["scientific"] = min(6 + phase3_trials, 10)
         else:
-            scores["scientific"] = 6.0
+            scores["scientific"] = NO_DATA_SCORE
 
         # Supply chain feasibility (from EXIM)
         exim = results.get("exim_trends")
-        if reused_score("exim_trends") is not None:
-            scores["supply"] = reused_score("exim_trends")
-        elif exim and exim.status == AgentStatus.COMPLETED:
+        exim_reused = reused_score("exim_trends")
+        if exim_reused is not None:
+            scores["supply"] = exim_reused
+        elif exim and exim.status == AgentStatus.COMPLETED and exim.data.get("api_sources"):
             feasibility = exim.data.get("supply_feasibility", "Medium")
             scores["supply"] = 9.0 if feasibility == "High" else 7.0 if feasibility == "Medium" else 5.0
         else:
-            scores["supply"] = 6.0
+            scores["supply"] = NO_DATA_SCORE
         
         # Overall weighted score
         weights = {"market": 0.25, "competitive": 0.2, "regulatory": 0.2, 

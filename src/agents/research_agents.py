@@ -369,8 +369,15 @@ class EXIMTrendsAgent(BaseAgent):
         sources = exim.get("api_sources", [])
         primary_source = sources[0] if sources else {"country": "Unknown", "share": 0}
         
-        # Risk assessment
-        concentration_risk = "High" if primary_source.get("share", 0) > 60 else "Medium" if primary_source.get("share", 0) > 40 else "Low"
+        # Risk assessment (no supplier data -> Unknown, not a falsely low risk)
+        if not sources:
+            concentration_risk = "Unknown"
+        elif primary_source.get("share", 0) > 60:
+            concentration_risk = "High"
+        elif primary_source.get("share", 0) > 40:
+            concentration_risk = "Medium"
+        else:
+            concentration_risk = "Low"
         
         insights = [
             f"Primary API source: {primary_source.get('country')} ({primary_source.get('share')}% supply)",
@@ -392,7 +399,11 @@ class EXIMTrendsAgent(BaseAgent):
                 "quality_certifications": exim.get("quality_certifications", []),
                 "concentration_risk": concentration_risk,
                 "insights": insights,
-                "supply_feasibility": "High" if concentration_risk != "High" else "Medium"
+                "supply_feasibility": (
+                    "Unknown" if not sources
+                    else "Medium" if concentration_risk == "High"
+                    else "High"
+                )
             },
             execution_time=execution_time,
             confidence=0.8,

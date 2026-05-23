@@ -400,17 +400,18 @@ def render_agent_progress(agent_updates: list):
         """, unsafe_allow_html=True)
 
 
-async def run_research(query: ResearchQuery, progress_container):
+async def run_research(query: ResearchQuery, progress_container, selected_agents=None):
     """Run the research and update progress"""
     master = MasterAgent()
     updates = []
-    
+
     def callback(update):
         updates.append(update)
         with progress_container:
             render_agent_progress(updates)
-    
-    report = await master.execute_research(query, callback=callback)
+
+    report = await master.execute_research(query, callback=callback,
+                                           selected_agents=selected_agents)
     return report
 
 
@@ -458,8 +459,11 @@ def main():
         st.markdown("###  Research Progress")
         progress_container = st.empty()
         
+        # Only run the agents the user checked (internal_knowledge always runs)
+        selected = [agent_id for agent_id, enabled in agents_selected.items() if enabled]
+
         with st.spinner("Executing research agents..."):
-            report = asyncio.run(run_research(query, progress_container))
+            report = asyncio.run(run_research(query, progress_container, selected_agents=selected))
         
         # Store report in session state
         st.session_state['report'] = report
