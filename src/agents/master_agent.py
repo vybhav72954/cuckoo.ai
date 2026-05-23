@@ -349,8 +349,9 @@ class MasterAgent:
 
         # Market attractiveness (from IQVIA)
         iqvia = results.get("iqvia_insights")
-        if reused_score("iqvia_insights") is not None:
-            scores["market"] = reused_score("iqvia_insights")
+        iqvia_reused = reused_score("iqvia_insights")
+        if iqvia_reused is not None:
+            scores["market"] = iqvia_reused
         elif iqvia and iqvia.status == AgentStatus.COMPLETED and iqvia.data.get("market_size_2024", 0) > 0:
             scores["market"] = iqvia.data.get("opportunity_score", 5.0)
         else:
@@ -360,8 +361,9 @@ class MasterAgent:
         # 0 = off-patent, a favorable FTO signal) is real data; only a missing/
         # failed patent agent falls back to NO_DATA_SCORE.
         patent = results.get("patent_landscape")
-        if reused_score("patent_landscape") is not None:
-            scores["competitive"] = reused_score("patent_landscape")
+        patent_reused = reused_score("patent_landscape")
+        if patent_reused is not None:
+            scores["competitive"] = patent_reused
         elif patent and patent.status == AgentStatus.COMPLETED and patent.data.get("total_patents") is not None:
             active_patents = patent.data.get("active_patents", 0)
             scores["competitive"] = 10 - min(active_patents * 2, 5)
@@ -370,8 +372,9 @@ class MasterAgent:
 
         # Regulatory feasibility (from Web Intelligence)
         web = results.get("web_intelligence")
-        if reused_score("web_intelligence") is not None:
-            scores["regulatory"] = reused_score("web_intelligence")
+        web_reused = reused_score("web_intelligence")
+        if web_reused is not None:
+            scores["regulatory"] = web_reused
         elif web and web.status == AgentStatus.COMPLETED and (web.data.get("regulatory_guidelines") or web.data.get("literature")):
             guidelines = web.data.get("regulatory_guidelines", [])
             scores["regulatory"] = 8.0 if guidelines else 6.0
@@ -380,8 +383,9 @@ class MasterAgent:
 
         # Scientific rationale (from Clinical Trials + Literature)
         clinical = results.get("clinical_trials")
-        if reused_score("clinical_trials") is not None:
-            scores["scientific"] = reused_score("clinical_trials")
+        clinical_reused = reused_score("clinical_trials")
+        if clinical_reused is not None:
+            scores["scientific"] = clinical_reused
         elif clinical and clinical.status == AgentStatus.COMPLETED and clinical.data.get("total_trials", 0) > 0:
             phase3_trials = clinical.data.get("phase_distribution", {}).get("Phase 3", 0)
             scores["scientific"] = min(6 + phase3_trials, 10)
@@ -390,8 +394,9 @@ class MasterAgent:
 
         # Supply chain feasibility (from EXIM)
         exim = results.get("exim_trends")
-        if reused_score("exim_trends") is not None:
-            scores["supply"] = reused_score("exim_trends")
+        exim_reused = reused_score("exim_trends")
+        if exim_reused is not None:
+            scores["supply"] = exim_reused
         elif exim and exim.status == AgentStatus.COMPLETED and exim.data.get("api_sources"):
             feasibility = exim.data.get("supply_feasibility", "Medium")
             scores["supply"] = 9.0 if feasibility == "High" else 7.0 if feasibility == "Medium" else 5.0
