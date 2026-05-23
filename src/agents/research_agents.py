@@ -252,7 +252,9 @@ class PatentLandscapeAgent(BaseAgent):
         active_expiries = []
         for p in active_patents:
             try:
-                active_expiries.append(datetime.fromisoformat(p.get("expiry_date")))
+                # .date() drops any time/tz, so mixed naive/aware values from
+                # fromisoformat can't clash in min() (expiry is a calendar date).
+                active_expiries.append(datetime.fromisoformat(p.get("expiry_date")).date())
             except (TypeError, ValueError):
                 continue
         patent_cliff_date = (
