@@ -557,24 +557,22 @@ def main():
                 )
 
             with col2:
-                # Build the current report's PDF once and cache the bytes in session
-                # state — Streamlit reruns the whole script on every interaction, so
-                # this avoids regenerating the same PDF repeatedly. Reflects the report
-                # just produced and works on a fresh deploy (no PDFs on disk).
-                pdf_cache_key = f"pdf_bytes_{report.report_id}"
-                pdf_bytes = st.session_state.get(pdf_cache_key)
-                if pdf_bytes is None:
+                # Build the current report's PDF once, caching a SINGLE entry in
+                # session state (Streamlit reruns the script on every interaction).
+                # Tracking the report id lets the cache replace rather than grow, and
+                # regenerate only when the displayed report changes.
+                if st.session_state.get("pdf_report_id") != report.report_id:
+                    st.session_state["pdf_bytes"] = None
                     try:
                         pdf_buffer = io.BytesIO()
                         generate_pdf_report(report.to_dict(), pdf_buffer)
-                        pdf_bytes = pdf_buffer.getvalue()
-                        st.session_state[pdf_cache_key] = pdf_bytes
+                        st.session_state["pdf_bytes"] = pdf_buffer.getvalue()
                     except Exception:
-                        # Log the full traceback server-side; show a generic message
-                        # rather than leaking raw exception details.
+                        # Log the full traceback server-side; users get a generic msg.
                         logger.exception("PDF generation failed for report %s", report.report_id)
-                        st.error("PDF generation failed. Please try again or contact support.")
+                    st.session_state["pdf_report_id"] = report.report_id
 
+                pdf_bytes = st.session_state.get("pdf_bytes")
                 if pdf_bytes is not None:
                     st.download_button(
                         "Download PDF Report",
@@ -582,6 +580,8 @@ def main():
                         file_name=f"{report.report_id}.pdf",
                         mime="application/pdf"
                     )
+                else:
+                    st.error("PDF generation failed. Please try again or contact support.")
             
             with col3:
                 st.button("Export to Excel", disabled=True, help="Coming soon!")
