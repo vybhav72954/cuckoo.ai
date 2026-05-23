@@ -15,14 +15,14 @@ from .base_agent import BaseAgent, AgentResult, AgentStatus, ResearchQuery
 def load_mock_data():
     data_path = Path(__file__).parent.parent.parent / "mock_data" / "pharma_data.json"
     if data_path.exists():
-        with open(data_path) as f:
+        with open(data_path, encoding="utf-8") as f:
             return json.load(f)
     return {}
 
 def load_archived_reports():
     data_path = Path(__file__).parent.parent.parent / "mock_data" / "archived_reports.json"
     if data_path.exists():
-        with open(data_path) as f:
+        with open(data_path, encoding="utf-8") as f:
             return json.load(f)
     return {"reports": [], "semantic_index": {}}
 
@@ -57,12 +57,12 @@ class InternalKnowledgeAgent(BaseAgent):
             tags = [t.lower() for t in report.get("tags", [])]
             if any(kw in tags for kw in keywords if kw):
                 relevant_reports.append({
-                    "report_id": report["report_id"],
-                    "title": f"{report['molecule']} - {report['indication']}",
-                    "date": report["created_date"],
-                    "summary": report["executive_summary"],
-                    "recommendation": report["recommendation"],
-                    "score": report["score"]["overall"],
+                    "report_id": report.get("report_id", ""),
+                    "title": f"{report.get('molecule', '?')} - {report.get('indication', '?')}",
+                    "date": report.get("created_date", ""),
+                    "summary": report.get("executive_summary", ""),
+                    "recommendation": report.get("recommendation", ""),
+                    "score": report.get("score", {}).get("overall", 0),
                     "scores": report.get("score", {}),
                     "relevance": "High" if query.molecule.lower() in [t.lower() for t in report.get("tags", [])] else "Medium"
                 })
@@ -253,7 +253,10 @@ class PatentLandscapeAgent(BaseAgent):
                 "active_patents": len(active_patents),
                 "expired_patents": len(expired_patents),
                 "patents": patents,
-                "patent_cliff_date": min([p.get("expiry_date") for p in active_patents]) if active_patents else "Already off-patent",
+                "patent_cliff_date": min(
+                    (p.get("expiry_date") for p in active_patents if p.get("expiry_date")),
+                    default="Already off-patent",
+                ),
                 "opportunities": opportunities,
                 "risks": risks,
                 "recommendation": "FAVORABLE" if len(active_patents) <= 1 else "CHALLENGING",

@@ -154,7 +154,7 @@ async def run_demo():
     
     # Save JSON
     json_path = reports_dir / f"{report.report_id}.json"
-    with open(json_path, 'w') as f:
+    with open(json_path, 'w', encoding="utf-8") as f:
         json.dump(report.to_dict(), f, indent=2, default=str)
     print(f"  {Colors.GREEN}✅ JSON saved: {json_path}{Colors.ENDC}")
     
