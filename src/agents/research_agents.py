@@ -63,6 +63,7 @@ class InternalKnowledgeAgent(BaseAgent):
                     "summary": report["executive_summary"],
                     "recommendation": report["recommendation"],
                     "score": report["score"]["overall"],
+                    "scores": report.get("score", {}),
                     "relevance": "High" if query.molecule.lower() in [t.lower() for t in report.get("tags", [])] else "Medium"
                 })
         
@@ -83,7 +84,22 @@ class InternalKnowledgeAgent(BaseAgent):
                 "Clinical trial landscape - last checked 60+ days ago",
                 "Competitive product updates - market dynamics may have changed"
             ]
-        
+
+        # How stale is the prior research? Drives delta-refresh in MasterAgent.
+        last_research_date = None
+        days_since_last_research = None
+        report_dates = []
+        for r in relevant_reports:
+            raw_date = (r.get("date") or "")[:10]
+            try:
+                report_dates.append(datetime.strptime(raw_date, "%Y-%m-%d"))
+            except ValueError:
+                continue
+        if report_dates:
+            most_recent = max(report_dates)
+            last_research_date = most_recent.strftime("%Y-%m-%d")
+            days_since_last_research = (datetime.now() - most_recent).days
+
         execution_time = (time.time() - start_time) * 1000
         self.status = AgentStatus.COMPLETED
         self.last_run = datetime.now()
@@ -95,6 +111,8 @@ class InternalKnowledgeAgent(BaseAgent):
                 "areas_needing_refresh": outdated_areas,
                 "recommendation": "PARTIAL_REUSE" if relevant_reports else "FULL_RESEARCH",
                 "prior_research_exists": len(relevant_reports) > 0,
+                "last_research_date": last_research_date,
+                "days_since_last_research": days_since_last_research,
                 "estimated_time_saved": f"{len(relevant_reports) * 15}%" if relevant_reports else "0%"
             },
             execution_time=execution_time,
