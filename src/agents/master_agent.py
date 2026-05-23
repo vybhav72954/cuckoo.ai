@@ -10,6 +10,31 @@ import json
 
 from .base_agent import BaseAgent, AgentResult, AgentStatus, ResearchQuery, AgentOrchestrator
 from .research_agents import create_all_agents
+from config import Config
+
+
+def _freshness_thresholds() -> Dict[str, int]:
+    """Per-agent max age (days) before prior research must be refreshed (from config.py)."""
+    cfg = Config.get_instance()
+    return {
+        "clinical_trials": cfg.CLINICAL_TRIALS_FRESHNESS,
+        "patent_landscape": cfg.PATENT_FRESHNESS,
+        "iqvia_insights": cfg.MARKET_DATA_FRESHNESS,
+        "exim_trends": cfg.MARKET_DATA_FRESHNESS,
+        "web_intelligence": cfg.LITERATURE_FRESHNESS,
+    }
+
+# Sub-score each agent "owns" in a prior report, so a reused (still-fresh) agent
+# contributes its archived score instead of a neutral default. (Archived reports
+# don't carry a supply-chain score, so exim_trends has no reusable score.)
+PRIOR_SCORE_KEY = {
+    "iqvia_insights": "market_attractiveness",
+    "patent_landscape": "competitive_intensity",
+    "web_intelligence": "regulatory_feasibility",
+    "clinical_trials": "scientific_rationale",
+    "exim_trends": None,
+}
+
 
 @dataclass
 class SynthesizedReport:
@@ -43,7 +68,9 @@ class SynthesizedReport:
     execution_time_ms: float = 0.0
     data_freshness: str = ""
     reused_from_archive: bool = False
-    
+    agents_refreshed: List[str] = field(default_factory=list)
+    agents_reused: List[str] = field(default_factory=list)
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "report_id": self.report_id,
@@ -72,7 +99,9 @@ class SynthesizedReport:
                 "total_sources": self.total_sources,
                 "execution_time_ms": self.execution_time_ms,
                 "data_freshness": self.data_freshness,
-                "reused_from_archive": self.reused_from_archive
+                "reused_from_archive": self.reused_from_archive,
+                "agents_refreshed": self.agents_refreshed,
+                "agents_reused": self.agents_reused
             }
         }
 
@@ -126,19 +155,26 @@ class MasterAgent:
         update_progress("internal_knowledge", "completed", 
                        f"Found {len(internal_result.data.get('relevant_reports', []))} related reports")
         
-        # Step 2: Determine which agents need fresh research
-        agents_to_run = self._determine_agents_to_run(internal_result, query)
-        update_progress("master", "planning", 
-                       f"Running {len(agents_to_run)} agents for fresh research")
-        
-        # Step 3: Execute research agents in parallel
+        # Step 2: Delta refresh — decide which agents to re-run vs reuse from archive
+        agents_to_run, agents_reused = self._determine_agents_to_run(internal_result, query)
+        update_progress("master", "planning",
+                       f"Refreshing {len(agents_to_run)} agents, "
+                       f"reusing {len(agents_reused)} from archive")
+
         results = {"internal_knowledge": internal_result}
-        
+
+        # Step 3a: Reuse still-fresh prior research without re-running those agents
+        for agent_id in agents_reused:
+            results[agent_id] = self._build_reused_result(agent_id, internal_result)
+            update_progress(agent_id, "completed",
+                          "Reused from institutional memory (data still fresh)")
+
+        # Step 3b: Execute the agents whose data is stale
         for agent_id in agents_to_run:
             update_progress(agent_id, "running", f"Executing {self.agents[agent_id].name}...")
             result = await self.agents[agent_id].execute(query)
             results[agent_id] = result
-            update_progress(agent_id, "completed", 
+            update_progress(agent_id, "completed",
                           f"Found {result.source_count} sources")
         
         # Step 4: Synthesize findings
@@ -148,27 +184,77 @@ class MasterAgent:
         
         return report
     
-    def _determine_agents_to_run(self, internal_result: AgentResult, 
-                                  query: ResearchQuery) -> List[str]:
+    def _determine_agents_to_run(self, internal_result: AgentResult,
+                                  query: ResearchQuery) -> tuple:
         """
-        Smart agent selection based on institutional memory
-        
-        If we have recent, relevant research, we may skip some agents
+        Delta-refresh decision: which agents must run fresh vs. can be reused.
+
+        Compares the age of the most relevant prior research against each domain's
+        freshness threshold (config.py). Domains still within their threshold are
+        reused from institutional memory; stale domains are re-run.
+
+        Returns (agents_to_run, agents_reused).
         """
-        # For PoC, we run all agents but this shows the logic
-        all_agents = ["clinical_trials", "patent_landscape", "iqvia_insights", 
+        all_agents = ["clinical_trials", "patent_landscape", "iqvia_insights",
                       "exim_trends", "web_intelligence"]
-        
-        # Check what areas need refresh
-        areas_needing_refresh = internal_result.data.get("areas_needing_refresh", [])
-        
+
+        # No prior research -> everything must be researched fresh.
         if not internal_result.data.get("prior_research_exists"):
-            # No prior research - run everything
-            return all_agents
-        
-        # In production, we would be smarter about which agents to skip
-        # For now, run all to demonstrate full capability
-        return all_agents
+            return all_agents, []
+
+        days_since = internal_result.data.get("days_since_last_research")
+        if days_since is None:
+            # Prior research exists but we couldn't date it -> refresh everything.
+            return all_agents, []
+
+        thresholds = _freshness_thresholds()
+        # Domains the knowledge agent explicitly flagged as stale must refresh
+        # regardless of age. Intersect with known agents so any prose entries are
+        # ignored rather than treated as agent ids.
+        force_refresh = set(internal_result.data.get("areas_needing_refresh", [])) & set(all_agents)
+
+        agents_to_run, agents_reused = [], []
+        for agent_id in all_agents:
+            if days_since > thresholds[agent_id] or agent_id in force_refresh:
+                agents_to_run.append(agent_id)
+            else:
+                agents_reused.append(agent_id)
+        return agents_to_run, agents_reused
+
+    def _build_reused_result(self, agent_id: str,
+                             internal_result: AgentResult) -> AgentResult:
+        """
+        Build a CACHED result for an agent skipped because its data is still fresh.
+
+        Carries forward the most recent prior sub-score for that domain so synthesis
+        stays meaningful without re-running the agent.
+        """
+        reports = internal_result.data.get("relevant_reports", [])
+        reused_score = None
+        prior_scores = {}
+        score_key = PRIOR_SCORE_KEY.get(agent_id)
+        if reports:
+            latest = max(reports, key=lambda r: r.get("date") or "")
+            prior_scores = latest.get("scores", {})
+            if score_key:
+                reused_score = prior_scores.get(score_key)
+
+        return AgentResult(
+            agent_name=self.agents[agent_id].name,
+            status=AgentStatus.CACHED,
+            data={
+                "reused": True,
+                "reused_score": reused_score,
+                "source": "institutional_memory",
+                # Snapshot of the prior research so synthesis can read the reused
+                # domain instead of dropping it.
+                "archived_payload": {"reports": reports, "scores": prior_scores},
+            },
+            confidence_score=0.7,
+            source_count=internal_result.source_count,
+            cached=True,
+            data_freshness_date=internal_result.data.get("last_research_date")
+        )
     
     def _synthesize_report(self, query: ResearchQuery, 
                            results: Dict[str, AgentResult],
@@ -193,7 +279,15 @@ class MasterAgent:
         # Calculate metadata
         total_sources = sum(r.source_count for r in results.values())
         execution_time = (datetime.now() - start_time).total_seconds() * 1000
-        
+
+        # Which fresh-research agents ran vs were reused from the archive
+        fresh_agents = ["clinical_trials", "patent_landscape", "iqvia_insights",
+                        "exim_trends", "web_intelligence"]
+        agents_reused = [a for a in fresh_agents
+                         if a in results and results[a].status == AgentStatus.CACHED]
+        agents_refreshed = [a for a in fresh_agents
+                            if a in results and results[a].status == AgentStatus.COMPLETED]
+
         report = SynthesizedReport(
             report_id=f"RPT-{datetime.now().strftime('%Y%m%d')}-{query.query_id}",
             query=query,
@@ -214,51 +308,68 @@ class MasterAgent:
             total_sources=total_sources,
             execution_time_ms=execution_time,
             data_freshness=datetime.now().strftime("%Y-%m-%d"),
-            reused_from_archive=results.get("internal_knowledge", AgentResult(
-                agent_name="", status=AgentStatus.IDLE, data={}
-            )).data.get("prior_research_exists", False)
+            reused_from_archive=bool(agents_reused),
+            agents_refreshed=agents_refreshed,
+            agents_reused=agents_reused
         )
-        
+
         return report
     
     def _calculate_scores(self, results: Dict[str, AgentResult]) -> Dict[str, float]:
         """Calculate opportunity scores based on agent findings"""
         scores = {}
-        
+
+        def reused_score(agent_id):
+            """Return the carried-forward prior score if this agent was reused, else None."""
+            r = results.get(agent_id)
+            if r is not None and r.status == AgentStatus.CACHED:
+                return r.data.get("reused_score")
+            return None
+
         # Market attractiveness (from IQVIA)
         iqvia = results.get("iqvia_insights")
-        if iqvia and iqvia.status == AgentStatus.COMPLETED:
+        if reused_score("iqvia_insights") is not None:
+            scores["market"] = reused_score("iqvia_insights")
+        elif iqvia and iqvia.status == AgentStatus.COMPLETED:
             scores["market"] = iqvia.data.get("opportunity_score", 5.0)
         else:
             scores["market"] = 5.0
-        
+
         # Competitive intensity (from IQVIA + Patents)
         patent = results.get("patent_landscape")
-        if patent and patent.status == AgentStatus.COMPLETED:
+        if reused_score("patent_landscape") is not None:
+            scores["competitive"] = reused_score("patent_landscape")
+        elif patent and patent.status == AgentStatus.COMPLETED:
             active_patents = patent.data.get("active_patents", 0)
             scores["competitive"] = 10 - min(active_patents * 2, 5)
         else:
             scores["competitive"] = 5.0
-        
+
         # Regulatory feasibility (from Web Intelligence)
         web = results.get("web_intelligence")
-        if web and web.status == AgentStatus.COMPLETED:
+        if reused_score("web_intelligence") is not None:
+            scores["regulatory"] = reused_score("web_intelligence")
+        elif web and web.status == AgentStatus.COMPLETED:
             guidelines = web.data.get("regulatory_guidelines", [])
             scores["regulatory"] = 8.0 if guidelines else 6.0
         else:
             scores["regulatory"] = 6.0
-        
+
         # Scientific rationale (from Clinical Trials + Literature)
         clinical = results.get("clinical_trials")
-        if clinical and clinical.status == AgentStatus.COMPLETED:
+        if reused_score("clinical_trials") is not None:
+            scores["scientific"] = reused_score("clinical_trials")
+        elif clinical and clinical.status == AgentStatus.COMPLETED:
             phase3_trials = clinical.data.get("phase_distribution", {}).get("Phase 3", 0)
             scores["scientific"] = min(6 + phase3_trials, 10)
         else:
             scores["scientific"] = 6.0
-        
+
         # Supply chain feasibility (from EXIM)
         exim = results.get("exim_trends")
-        if exim and exim.status == AgentStatus.COMPLETED:
+        if reused_score("exim_trends") is not None:
+            scores["supply"] = reused_score("exim_trends")
+        elif exim and exim.status == AgentStatus.COMPLETED:
             feasibility = exim.data.get("supply_feasibility", "Medium")
             scores["supply"] = 9.0 if feasibility == "High" else 7.0 if feasibility == "Medium" else 5.0
         else:
