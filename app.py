@@ -460,7 +460,8 @@ def main():
             height=100,
             placeholder="E.g., 'Evaluate Metformin for anti-inflammatory indications'"
         )
-        
+        query_clean = (query_text or "").strip()
+
         run_button = st.button(" Start Research", use_container_width=True)
     
     with col2:
@@ -476,7 +477,7 @@ def main():
         if not molecule_clean or not indication_clean:
             st.warning("Please provide both a molecule and a target indication "
                        "(fill in the 'Other' box if selected) before running research.")
-        elif not (query_text or "").strip():
+        elif not query_clean:
             st.warning("Please enter a research question.")
         else:
             # Sidebar selections are the source of truth — build the query directly
@@ -485,7 +486,7 @@ def main():
                 molecule=molecule_clean,
                 indication=indication_clean,
                 geography=geography,
-                raw_query=query_text,
+                raw_query=query_clean,
             )
 
             # Progress section
