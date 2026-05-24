@@ -40,6 +40,18 @@ PRIOR_SCORE_KEY = {
 # Intentionally low so "no information" cannot read as a favorable result.
 NO_DATA_SCORE = 2.0
 
+# Archived reports carry qualitative confidence labels; fresh findings use a 0-1
+# float. Normalize so reused findings render consistently (confidence * 100).
+_CONFIDENCE_LABELS = {"high": 0.9, "medium": 0.7, "low": 0.5}
+
+def _confidence_to_float(value, default: float = 0.6) -> float:
+    if isinstance(value, (int, float)):
+        v = float(value)
+        if v > 1:  # percent-like (e.g. 85) -> fraction
+            v /= 100
+        return max(0.0, min(1.0, v))
+    return _CONFIDENCE_LABELS.get(str(value).strip().lower(), default)
+
 
 @dataclass
 class SynthesizedReport:
@@ -171,7 +183,7 @@ class MasterAgent:
 
         # Step 3a: Reuse still-fresh prior research without re-running those agents
         for agent_id in agents_reused:
-            results[agent_id] = self._build_reused_result(agent_id, internal_result)
+            results[agent_id] = self._build_reused_result(agent_id, internal_result, query)
             update_progress(agent_id, "completed",
                           "Reused from institutional memory (data still fresh)")
 
@@ -232,23 +244,36 @@ class MasterAgent:
                 agents_reused.append(agent_id)
         return agents_to_run, agents_reused
 
+    def _best_prior_report(self, internal_result: Optional[AgentResult],
+                           query: ResearchQuery) -> Optional[Dict[str, Any]]:
+        """
+        Choose which archived report to reuse: prefer one whose indication matches
+        the query, otherwise fall back to the most recent relevant report.
+        """
+        if internal_result is None:
+            return None
+        reports = internal_result.data.get("relevant_reports", [])
+        if not reports:
+            return None
+        indication = (query.indication or "").lower()
+        matches = [r for r in reports
+                   if indication and indication in (r.get("indication", "") or "").lower()]
+        pool = matches or reports
+        return max(pool, key=lambda r: r.get("date") or "")
+
     def _build_reused_result(self, agent_id: str,
-                             internal_result: AgentResult) -> AgentResult:
+                             internal_result: AgentResult,
+                             query: ResearchQuery) -> AgentResult:
         """
         Build a CACHED result for an agent skipped because its data is still fresh.
 
-        Carries forward the most recent prior sub-score for that domain so synthesis
+        Carries forward the best-matching prior sub-score for that domain so synthesis
         stays meaningful without re-running the agent.
         """
-        reports = internal_result.data.get("relevant_reports", [])
-        reused_score = None
-        prior_scores = {}
+        prior = self._best_prior_report(internal_result, query)
+        prior_scores = prior.get("scores", {}) if prior else {}
         score_key = PRIOR_SCORE_KEY.get(agent_id)
-        if reports:
-            latest = max(reports, key=lambda r: r.get("date") or "")
-            prior_scores = latest.get("scores", {})
-            if score_key:
-                reused_score = prior_scores.get(score_key)
+        reused_score = prior_scores.get(score_key) if score_key else None
 
         return AgentResult(
             agent_name=self.agents[agent_id].name,
@@ -257,9 +282,7 @@ class MasterAgent:
                 "reused": True,
                 "reused_score": reused_score,
                 "source": "institutional_memory",
-                # Snapshot of the prior research so synthesis can read the reused
-                # domain instead of dropping it.
-                "archived_payload": {"reports": reports, "scores": prior_scores},
+                "archived_report_id": prior.get("report_id") if prior else None,
             },
             confidence_score=0.7,
             source_count=internal_result.source_count,
@@ -274,22 +297,6 @@ class MasterAgent:
         
         # Calculate scores
         scores = self._calculate_scores(results)
-        
-        # Generate executive summary
-        summary = self._generate_executive_summary(query, results, scores)
-        
-        # Extract key findings from each agent
-        key_findings = self._extract_key_findings(results)
-        
-        # Compile recommendations, risks, opportunities
-        recommendations, risks, opportunities = self._compile_recommendations(results, scores)
-        
-        # Generate next steps
-        next_steps = self._generate_next_steps(scores, query)
-        
-        # Calculate metadata
-        total_sources = sum(r.source_count for r in results.values())
-        execution_time = (datetime.now() - start_time).total_seconds() * 1000
 
         # Which fresh-research agents ran vs were reused from the archive
         fresh_agents = ["clinical_trials", "patent_landscape", "iqvia_insights",
@@ -298,6 +305,26 @@ class MasterAgent:
                          if a in results and results[a].status == AgentStatus.CACHED]
         agents_refreshed = [a for a in fresh_agents
                             if a in results and results[a].status == AgentStatus.COMPLETED]
+        # The archived report whose research is being reused (drives findings/summary
+        # fallback for reused domains).
+        prior_report = (self._best_prior_report(results.get("internal_knowledge"), query)
+                        if agents_reused else None)
+
+        # Generate executive summary (reuse-aware)
+        summary = self._generate_executive_summary(query, results, scores, prior_report)
+
+        # Extract key findings, surfacing prior research for reused domains
+        key_findings = self._extract_key_findings(results, prior_report)
+
+        # Compile recommendations, risks, opportunities
+        recommendations, risks, opportunities = self._compile_recommendations(results, scores)
+
+        # Generate next steps
+        next_steps = self._generate_next_steps(scores, query)
+
+        # Calculate metadata
+        total_sources = sum(r.source_count for r in results.values())
+        execution_time = (datetime.now() - start_time).total_seconds() * 1000
 
         report = SynthesizedReport(
             report_id=f"RPT-{datetime.now().strftime('%Y%m%d')}-{query.query_id}",
@@ -404,21 +431,36 @@ class MasterAgent:
         
         return scores
     
-    def _generate_executive_summary(self, query: ResearchQuery, 
+    def _generate_executive_summary(self, query: ResearchQuery,
                                      results: Dict[str, AgentResult],
-                                     scores: Dict[str, float]) -> str:
+                                     scores: Dict[str, float],
+                                     prior_report: Optional[Dict[str, Any]] = None) -> str:
         """Generate executive summary based on findings"""
-        
+
         overall = scores["overall"]
         recommendation = recommendation_for(overall)
-        
-        # Get key stats
+
+        # Quote a live figure only when the agent ran fresh; for reused domains say
+        # so rather than reporting "0 trials" / "$0.0B" from an absent field.
         clinical = results.get("clinical_trials")
-        trial_count = clinical.data.get("total_trials", 0) if clinical else 0
-        
+        if clinical and clinical.status == AgentStatus.COMPLETED:
+            trials = clinical.data.get("total_trials", 0)
+            clinical_line = (f"- {trials} relevant clinical trials identified, indicating "
+                             f"{'strong' if trials > 3 else 'growing'} research interest")
+        elif clinical and clinical.status == AgentStatus.CACHED:
+            clinical_line = "- Clinical evidence drawn from prior research on file"
+        else:
+            clinical_line = "- No clinical trial data available"
+
         iqvia = results.get("iqvia_insights")
-        market_size = iqvia.data.get("market_size_2024", 0) if iqvia else 0
-        
+        if iqvia and iqvia.status == AgentStatus.COMPLETED:
+            market_size = iqvia.data.get("market_size_2024", 0)
+            market_line = f"- Current market size: ${market_size/1e9:.1f}B with expansion potential"
+        elif iqvia and iqvia.status == AgentStatus.CACHED:
+            market_line = "- Market sizing reused from prior research on file"
+        else:
+            market_line = "- No market sizing data available"
+
         summary = f"""
 **Opportunity Assessment: {query.molecule} for {query.indication}**
 
@@ -427,17 +469,22 @@ class MasterAgent:
 {query.molecule} presents a {"promising" if overall >= PROCEED_THRESHOLD else "moderate"} opportunity for {query.indication} indication expansion.
 
 Key highlights:
-- {trial_count} relevant clinical trials identified, indicating {"strong" if trial_count > 3 else "growing"} research interest
-- Current market size: ${market_size/1e9:.1f}B with expansion potential
+{clinical_line}
+{market_line}
 - Regulatory pathway: {"Clear via 505(b)(2)" if scores["regulatory"] >= 7 else "Requires further assessment"}
 - Supply chain: {"Well-established" if scores["supply"] >= 7 else "Manageable with planning"}
 
 The analysis draws from {sum(r.source_count for r in results.values())} sources across clinical trials, patents, market data, and literature.
         """.strip()
-        
+
+        if prior_report:
+            summary += (f"\n\nReuses institutional memory from {prior_report.get('report_id', 'archive')}"
+                        f" ({(prior_report.get('date') or '')[:10]}) where prior data was still current.")
+
         return summary
     
-    def _extract_key_findings(self, results: Dict[str, AgentResult]) -> List[Dict[str, Any]]:
+    def _extract_key_findings(self, results: Dict[str, AgentResult],
+                              prior_report: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Extract and prioritize key findings from all agents"""
         findings = []
         
@@ -484,7 +531,24 @@ The analysis draws from {sum(r.source_count for r in results.values())} sources 
                     "source": "Web Intelligence Agent",
                     "confidence": web.confidence_score
                 })
-        
+
+        # For reused domains, surface the prior report's findings (categories not
+        # already covered by a freshly-run agent) so a reused report isn't left empty.
+        if prior_report:
+            covered = {f["category"] for f in findings}
+            report_id = prior_report.get("report_id", "archive")
+            for pf in prior_report.get("key_findings", []):
+                category = pf.get("category", "Prior Research")
+                if category in covered:
+                    continue
+                covered.add(category)
+                findings.append({
+                    "category": category,
+                    "finding": pf.get("finding", ""),
+                    "source": f"Institutional memory ({report_id})",
+                    "confidence": _confidence_to_float(pf.get("confidence")),
+                })
+
         return findings
     
     def _compile_recommendations(self, results: Dict[str, AgentResult], 
