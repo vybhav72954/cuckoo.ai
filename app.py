@@ -493,10 +493,13 @@ def main():
 
         # If the sidebar inputs no longer match the displayed report, flag it rather
         # than silently showing stale results from a previous run.
-        if report.query.molecule != molecule or report.query.indication != indication:
+        if (report.query.molecule != molecule
+                or report.query.indication != indication
+                or report.query.geography != geography):
             st.info(
                 f"Showing the previous result for **{report.query.molecule} / "
-                f"{report.query.indication}**. Adjust inputs and click Start Research to refresh."
+                f"{report.query.indication} ({report.query.geography})**. "
+                f"Adjust inputs and click Start Research to refresh."
             )
 
         st.markdown("---")
