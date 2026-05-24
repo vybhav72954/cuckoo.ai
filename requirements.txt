@@ -1,36 +1,26 @@
-# Pharma AI PoC - Dependencies
+# Cuckoo.ai - Runtime dependencies
 # EY Techathon 6.0 - Round 2
+#
+# Only the packages the app actually imports today. Aspirational libraries for
+# the planned production build (LLM / data / DB / vector store) are listed but
+# commented out so installs stay lean and deploys stay fast. Uncomment a line
+# when the corresponding code is actually wired in.
+# Dev/test tools live in requirements-dev.txt.
 
-# Core Framework
-streamlit>=1.28.0
+# --- Runtime (required) ---
+streamlit>=1.54.0,<2.0.0    # Web UI (app.py); >=1.54.0 avoids CVE-2026-33682 (Windows SSRF)
+reportlab>=4.0.0,<5.0.0     # PDF report generation (src/reports/pdf_generator.py)
 
-# AI/ML
-openai>=1.0.0
-langchain>=0.1.0
-langchain-openai>=0.0.2
-
-# Data Processing
-pandas>=2.0.0
-numpy>=1.24.0
-
-# PDF Generation
-reportlab>=4.0.0
-
-# Async Support
-asyncio-throttle>=1.0.0
-
-# Database (for production)
-# psycopg2-binary>=2.9.0
+# --- Planned for production (not imported yet) ---
+# openai>=1.0.0             # real LLM calls (currently mocked)
+# langchain>=0.1.0
+# langchain-openai>=0.0.2
+# pandas>=2.0.0             # data processing
+# numpy>=1.24.0
+# pydantic>=2.0.0           # schema validation
+# python-dotenv>=1.0.0      # load API keys from .env
+# asyncio-throttle>=1.0.0   # rate-limit real API calls
+# psycopg2-binary>=2.9.0    # Postgres (institutional memory store)
 # sqlalchemy>=2.0.0
-
-# Vector Store (for production)
-# faiss-cpu>=1.7.0
+# faiss-cpu>=1.7.0          # vector store for semantic archive search
 # pgvector>=0.2.0
-
-# Utilities
-python-dotenv>=1.0.0
-pydantic>=2.0.0
-
-# Testing
-pytest>=7.0.0
-pytest-asyncio>=0.21.0
