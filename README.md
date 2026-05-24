@@ -54,9 +54,7 @@ streamlit run app.py
 | Name | Role                                 |
 |------|--------------------------------------|
 | Pranav Taneja | Prompt Engineering                   |
-| Sanket Wathore | Deep Learning & Healthcare Analytics |
 | Sneha Yadav | Data Preparation & Visualization     |
-| Gudaru Pragathi | Data Management                      |
 | Vybhav Chaturvedi | Solution Architect                   |
 
 ---
