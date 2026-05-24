@@ -285,7 +285,10 @@ class MasterAgent:
                 "archived_report_id": prior.get("report_id") if prior else None,
             },
             confidence_score=0.7,
-            source_count=internal_result.source_count,
+            # Reused agents fetch no fresh sources; the backing prior reports are
+            # already counted once via the internal_knowledge agent, so count 0 here
+            # to avoid inflating total_sources.
+            source_count=0,
             cached=True,
             data_freshness_date=internal_result.data.get("last_research_date")
         )
