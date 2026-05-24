@@ -439,7 +439,12 @@ def main():
     
     # Sidebar
     molecule, indication, geography, agents_selected = render_sidebar()
-    
+
+    # Sanitize once so the same clean values drive the default prompt, the run, and
+    # the staleness check (geography is a fixed selectbox value, already clean).
+    molecule_clean = (molecule or "").strip()
+    indication_clean = (indication or "").strip()
+
     # Main content area
     col1, col2 = st.columns([2, 1])
     
@@ -447,7 +452,7 @@ def main():
         st.markdown("### Research Query")
         
         # Build natural language query
-        default_query = f"Evaluate {molecule} for {indication} indication in {geography} market"
+        default_query = f"Evaluate {molecule_clean} for {indication_clean} indication in {geography} market"
         
         query_text = st.text_area(
             "Enter your research question",
@@ -455,7 +460,8 @@ def main():
             height=100,
             placeholder="E.g., 'Evaluate Metformin for anti-inflammatory indications'"
         )
-        
+        query_clean = (query_text or "").strip()
+
         run_button = st.button(" Start Research", use_container_width=True)
     
     with col2:
@@ -467,25 +473,35 @@ def main():
     st.markdown("---")
     
     # Run research
-    if run_button and query_text:
-        query = ResearchQuery.from_natural_language(query_text)
-        query.molecule = molecule
-        query.indication = indication
-        query.geography = geography
-        
-        # Progress section
-        st.markdown("###  Research Progress")
-        progress_container = st.empty()
-        
-        # Only run the agents the user checked (internal_knowledge always runs)
-        selected = [agent_id for agent_id, enabled in agents_selected.items() if enabled]
+    if run_button:
+        if not molecule_clean or not indication_clean:
+            st.warning("Please provide both a molecule and a target indication "
+                       "(fill in the 'Other' box if selected) before running research.")
+        elif not query_clean:
+            st.warning("Please enter a research question.")
+        else:
+            # Sidebar selections are the source of truth — build the query directly
+            # rather than parsing query_text and overwriting it.
+            query = ResearchQuery(
+                molecule=molecule_clean,
+                indication=indication_clean,
+                geography=geography,
+                raw_query=query_clean,
+            )
 
-        with st.spinner("Executing research agents..."):
-            report = asyncio.run(run_research(query, progress_container, selected_agents=selected))
-        
-        # Store report in session state
-        st.session_state['report'] = report
-        st.success(" Research complete!")
+            # Progress section
+            st.markdown("###  Research Progress")
+            progress_container = st.empty()
+
+            # Only run the agents the user checked (internal_knowledge always runs)
+            selected = [agent_id for agent_id, enabled in agents_selected.items() if enabled]
+
+            with st.spinner("Executing research agents..."):
+                report = asyncio.run(run_research(query, progress_container, selected_agents=selected))
+
+            # Store report in session state
+            st.session_state['report'] = report
+            st.success(" Research complete!")
     
     # Display results
     if 'report' in st.session_state:
@@ -493,8 +509,8 @@ def main():
 
         # If the sidebar inputs no longer match the displayed report, flag it rather
         # than silently showing stale results from a previous run.
-        if (report.query.molecule != molecule
-                or report.query.indication != indication
+        if (report.query.molecule != molecule_clean
+                or report.query.indication != indication_clean
                 or report.query.geography != geography):
             st.info(
                 f"Showing the previous result for **{report.query.molecule} / "
