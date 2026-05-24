@@ -439,7 +439,12 @@ def main():
     
     # Sidebar
     molecule, indication, geography, agents_selected = render_sidebar()
-    
+
+    # Sanitize once so the same clean values drive the default prompt, the run, and
+    # the staleness check (geography is a fixed selectbox value, already clean).
+    molecule_clean = (molecule or "").strip()
+    indication_clean = (indication or "").strip()
+
     # Main content area
     col1, col2 = st.columns([2, 1])
     
@@ -447,7 +452,7 @@ def main():
         st.markdown("### Research Query")
         
         # Build natural language query
-        default_query = f"Evaluate {molecule} for {indication} indication in {geography} market"
+        default_query = f"Evaluate {molecule_clean} for {indication_clean} indication in {geography} market"
         
         query_text = st.text_area(
             "Enter your research question",
@@ -468,19 +473,20 @@ def main():
     
     # Run research
     if run_button:
-        molecule_clean = (molecule or "").strip()
-        indication_clean = (indication or "").strip()
-
         if not molecule_clean or not indication_clean:
             st.warning("Please provide both a molecule and a target indication "
                        "(fill in the 'Other' box if selected) before running research.")
         elif not (query_text or "").strip():
             st.warning("Please enter a research question.")
         else:
-            query = ResearchQuery.from_natural_language(query_text)
-            query.molecule = molecule_clean
-            query.indication = indication_clean
-            query.geography = geography
+            # Sidebar selections are the source of truth — build the query directly
+            # rather than parsing query_text and overwriting it.
+            query = ResearchQuery(
+                molecule=molecule_clean,
+                indication=indication_clean,
+                geography=geography,
+                raw_query=query_text,
+            )
 
             # Progress section
             st.markdown("###  Research Progress")
@@ -502,8 +508,8 @@ def main():
 
         # If the sidebar inputs no longer match the displayed report, flag it rather
         # than silently showing stale results from a previous run.
-        if (report.query.molecule != molecule
-                or report.query.indication != indication
+        if (report.query.molecule != molecule_clean
+                or report.query.indication != indication_clean
                 or report.query.geography != geography):
             st.info(
                 f"Showing the previous result for **{report.query.molecule} / "
