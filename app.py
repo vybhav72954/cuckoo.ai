@@ -461,8 +461,8 @@ def main():
     with col2:
         st.markdown("###  Quick Stats")
         st.metric("Agents Selected", sum(agents_selected.values()))
-        st.metric("Estimated Time", "~30 seconds")
-        st.metric("Data Sources", "10+")
+        st.metric("Estimated Time", "~5 seconds")
+        st.metric("Data Sources", "20+")
     
     st.markdown("---")
     
@@ -490,7 +490,15 @@ def main():
     # Display results
     if 'report' in st.session_state:
         report = st.session_state['report']
-        
+
+        # If the sidebar inputs no longer match the displayed report, flag it rather
+        # than silently showing stale results from a previous run.
+        if report.query.molecule != molecule or report.query.indication != indication:
+            st.info(
+                f"Showing the previous result for **{report.query.molecule} / "
+                f"{report.query.indication}**. Adjust inputs and click Start Research to refresh."
+            )
+
         st.markdown("---")
         st.markdown("## 📊 Assessment Results")
         

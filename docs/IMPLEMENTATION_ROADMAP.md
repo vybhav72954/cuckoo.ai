@@ -53,7 +53,7 @@
 
 | Module | Purpose | Status |
 |--------|---------|--------|
-| `demo.py` | Command-line demonstration | ✅ Complete |
+| `demo_run.py` | Command-line demonstration | ✅ Complete |
 | Unit tests | Agent testing | 🔄 Planned |
 | Integration tests | End-to-end testing | 🔄 Planned |
 
@@ -249,7 +249,7 @@ def calculate_scores(results: Dict[str, AgentResult]) -> Dict[str, float]:
 pip install -r requirements.txt
 
 # 2. Run demo
-python demo.py
+python demo_run.py
 
 # 3. Run web app
 streamlit run app.py
