@@ -30,7 +30,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for professional styling
+# Custom CSS for professional styling.
+# NOTE: best-effort only — some selectors target Streamlit-internal DOM
+# (e.g. data-testid="metric-container", data-baseweb="tab") that can change
+# between Streamlit releases. If a future version drops the styling, the app
+# still functions; treat this as cosmetic, not load-bearing. (streamlit is
+# pinned < 2.0.0 in requirements.txt to limit surprise breakage.)
 st.markdown("""
 <style>
     /* Main theme */
