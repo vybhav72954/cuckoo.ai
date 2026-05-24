@@ -41,6 +41,12 @@ def _normalize_key_findings(raw):
     return normalized
 
 
+# Indications for which the seeded metformin_inflammation dataset is a valid stand-in.
+# The fallback is scoped to these so a Metformin query for an unrelated indication
+# (e.g. Oncology) doesn't silently receive anti-inflammatory data.
+_METFORMIN_FALLBACK_INDICATIONS = {"inflammation", "anti-inflammatory"}
+
+
 class InternalKnowledgeAgent(BaseAgent):
     """Agent that searches institutional memory and archived reports"""
     
@@ -164,7 +170,8 @@ class ClinicalTrialsAgent(BaseAgent):
         trials = mock_data.get("clinical_trials", {}).get(key, [])
         
         # If no exact match, try molecule + inflammation
-        if not trials and query.molecule.lower() == "metformin":
+        if (not trials and query.molecule.lower() == "metformin"
+                and query.indication.lower() in _METFORMIN_FALLBACK_INDICATIONS):
             trials = mock_data.get("clinical_trials", {}).get("metformin_inflammation", [])
         
         # Analyze trials
@@ -489,17 +496,35 @@ class WebIntelligenceAgent(BaseAgent):
         lit_key = f"{query.molecule.lower()}_{query.indication.lower().replace('-', '_').replace(' ', '_')}"
         literature = mock_data.get("literature", {}).get(lit_key, [])
         
-        if not literature and query.molecule.lower() == "metformin":
+        if (not literature and query.molecule.lower() == "metformin"
+                and query.indication.lower() in _METFORMIN_FALLBACK_INDICATIONS):
             literature = mock_data.get("literature", {}).get("metformin_inflammation", [])
         
         # Get regulatory guidelines
         reg_key = f"{query.molecule.lower()}_{query.indication.lower().replace('-', '_').replace(' ', '_')}"
         guidelines = mock_data.get("regulatory_guidelines", {}).get(reg_key, [])
         
-        if not guidelines and query.molecule.lower() == "metformin":
+        if (not guidelines and query.molecule.lower() == "metformin"
+                and query.indication.lower() in _METFORMIN_FALLBACK_INDICATIONS):
             guidelines = mock_data.get("regulatory_guidelines", {}).get("metformin_inflammation", [])
         
-        # Generate news items (simulated)
+        high_impact = [paper for paper in literature if paper.get("citations", 0) > 100]
+        has_evidence = bool(literature or guidelines)
+
+        # Derive insights from what was actually found — never assert positives
+        # unconditionally.
+        insights = []
+        if literature:
+            insights.append(f"Found {len(literature)} relevant publications")
+            if high_impact:
+                insights.append("Strong mechanistic rationale in high-impact peer-reviewed literature")
+        else:
+            insights.append("No relevant publications found")
+        if guidelines:
+            insights.append("Regulatory pathway appears feasible via 505(b)(2)")
+
+        # Simulated news / sentiment / KOLs only when there is underlying coverage,
+        # so a molecule with no data doesn't get fabricated positive signals.
         news = [
             {
                 "title": f"New research highlights {query.molecule}'s potential in {query.indication}",
@@ -508,31 +533,32 @@ class WebIntelligenceAgent(BaseAgent):
                 "sentiment": "Positive"
             },
             {
-                "title": f"FDA signals openness to repurposing strategies for established drugs",
+                "title": "FDA signals openness to repurposing strategies for established drugs",
                 "source": "Reuters Health",
                 "date": "2024-10-28",
                 "sentiment": "Positive"
             }
-        ]
-        
+        ] if has_evidence else []
+        sentiment_summary = "Generally Positive" if has_evidence else "Insufficient data"
+        # Derive KOLs from literature author metadata where present — no fabricated
+        # names. The current mock literature has no author field, so this is empty;
+        # it will populate once real literature / Bloomberg metadata is wired in.
+        key_opinion_leaders = [paper["author"] for paper in literature if paper.get("author")]
+
         execution_time = (time.time() - start_time) * 1000
         self.status = AgentStatus.COMPLETED
         self.last_run = datetime.now()
-        
+
         return self._create_result(
             data={
                 "literature": literature,
                 "total_publications": len(literature),
-                "high_impact_papers": [l for l in literature if l.get("citations", 0) > 100],
+                "high_impact_papers": high_impact,
                 "regulatory_guidelines": guidelines,
                 "recent_news": news,
-                "sentiment_summary": "Generally Positive",
-                "key_opinion_leaders": ["Dr. Nir Barzilai (TAME Trial)", "Dr. David Sinclair (Aging Research)"],
-                "insights": [
-                    f"Found {len(literature)} relevant publications",
-                    "Strong mechanistic rationale in peer-reviewed literature",
-                    "Regulatory pathway appears feasible via 505(b)(2)"
-                ]
+                "sentiment_summary": sentiment_summary,
+                "key_opinion_leaders": key_opinion_leaders,
+                "insights": insights
             },
             execution_time=execution_time,
             confidence=0.8,
