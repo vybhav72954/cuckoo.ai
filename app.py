@@ -467,25 +467,34 @@ def main():
     st.markdown("---")
     
     # Run research
-    if run_button and query_text:
-        query = ResearchQuery.from_natural_language(query_text)
-        query.molecule = molecule
-        query.indication = indication
-        query.geography = geography
-        
-        # Progress section
-        st.markdown("###  Research Progress")
-        progress_container = st.empty()
-        
-        # Only run the agents the user checked (internal_knowledge always runs)
-        selected = [agent_id for agent_id, enabled in agents_selected.items() if enabled]
+    if run_button:
+        molecule_clean = (molecule or "").strip()
+        indication_clean = (indication or "").strip()
 
-        with st.spinner("Executing research agents..."):
-            report = asyncio.run(run_research(query, progress_container, selected_agents=selected))
-        
-        # Store report in session state
-        st.session_state['report'] = report
-        st.success(" Research complete!")
+        if not molecule_clean or not indication_clean:
+            st.warning("Please provide both a molecule and a target indication "
+                       "(fill in the 'Other' box if selected) before running research.")
+        elif not (query_text or "").strip():
+            st.warning("Please enter a research question.")
+        else:
+            query = ResearchQuery.from_natural_language(query_text)
+            query.molecule = molecule_clean
+            query.indication = indication_clean
+            query.geography = geography
+
+            # Progress section
+            st.markdown("###  Research Progress")
+            progress_container = st.empty()
+
+            # Only run the agents the user checked (internal_knowledge always runs)
+            selected = [agent_id for agent_id, enabled in agents_selected.items() if enabled]
+
+            with st.spinner("Executing research agents..."):
+                report = asyncio.run(run_research(query, progress_container, selected_agents=selected))
+
+            # Store report in session state
+            st.session_state['report'] = report
+            st.success(" Research complete!")
     
     # Display results
     if 'report' in st.session_state:
