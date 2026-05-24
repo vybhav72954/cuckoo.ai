@@ -63,10 +63,12 @@ class InternalKnowledgeAgent(BaseAgent):
                     "report_id": report.get("report_id", ""),
                     "title": f"{report.get('molecule', '?')} - {report.get('indication', '?')}",
                     "date": report.get("created_date", ""),
+                    "indication": report.get("indication", ""),
                     "summary": report.get("executive_summary", ""),
                     "recommendation": report.get("recommendation", ""),
                     "score": score.get("overall", 0),
                     "scores": score,
+                    "key_findings": report.get("key_findings", []),
                     "relevance": "High" if query.molecule.lower() in [t.lower() for t in report.get("tags", [])] else "Medium"
                 })
         
