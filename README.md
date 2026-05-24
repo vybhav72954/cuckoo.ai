@@ -127,7 +127,7 @@ Query: *"Evaluate Metformin for anti-inflammatory indications"*
 
 ## Project Structure
 
-```
+```text
 app.py                    # Streamlit web app
 demo_run.py               # CLI demo (PDF + JSON output)
 config.py                 # config, palette, agent metadata, score thresholds
