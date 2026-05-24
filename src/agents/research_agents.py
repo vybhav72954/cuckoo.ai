@@ -343,7 +343,24 @@ class IQVIAInsightsAgent(BaseAgent):
             f"Projected 2030: ${projected_2030/1e9:.1f}B ({cagr}% CAGR)",
             f"Top 3 players control {market_concentration}% of market"
         ]
-        
+
+        # Geography: surface the target region's share of the global market so the
+        # selected geography actually shapes the report (inserted near the top so it
+        # carries into the synthesized key findings).
+        top_markets = market.get("top_markets", [])
+        geography = query.geography or "Global"
+        regional_market = None
+        if geography.lower() != "global":
+            regional_market = next(
+                (m for m in top_markets if m.get("region", "").lower() == geography.lower()),
+                None
+            )
+            if regional_market:
+                insights.insert(1, f"{geography}: {regional_market.get('share', 0)}% of the global "
+                                    f"market (~${regional_market.get('value', 0) / 1e9:.1f}B)")
+            else:
+                insights.insert(1, f"{geography}: no regional market breakdown on file")
+
         if query.indication:
             insights.append(f"New indication ({query.indication}) could expand addressable market by 15-25%")
         
@@ -356,7 +373,9 @@ class IQVIAInsightsAgent(BaseAgent):
                 "market_size_2024": current_size,
                 "market_size_2030_projected": projected_2030,
                 "cagr": cagr,
-                "top_markets": market.get("top_markets", []),
+                "top_markets": top_markets,
+                "target_geography": geography,
+                "regional_market": regional_market,
                 "competition": competition,
                 "pricing": market.get("pricing", {}),
                 "market_concentration": market_concentration,
