@@ -7,6 +7,7 @@ import streamlit as st
 import asyncio
 import json
 import io
+import html
 import logging
 import time
 from datetime import datetime
@@ -370,13 +371,18 @@ def render_key_findings(findings: list):
             "Supply Chain": "#20C997"
         }
         color = category_colors.get(finding.get("category", ""), "#17A2B8")
-        
+        # Escape data-derived text before embedding in raw HTML — findings can carry
+        # external/agent content, so unescaped values are an XSS vector.
+        category = html.escape(str(finding.get("category", "Finding")))
+        text = html.escape(str(finding.get("finding", "")))
+        source = html.escape(str(finding.get("source", "N/A")))
+
         st.markdown(f"""
         <div class="finding-card" style="border-left-color: {color};">
-            <div class="finding-category" style="color: {color};">{finding.get('category', 'Finding')}</div>
-            <div class="finding-text">{finding.get('finding', '')}</div>
+            <div class="finding-category" style="color: {color};">{category}</div>
+            <div class="finding-text">{text}</div>
             <div style="color: #6B7280; font-size: 0.8rem; margin-top: 0.5rem;">
-                Source: {finding.get('source', 'N/A')} | Confidence: {finding.get('confidence', 0)*100:.0f}%
+                Source: {source} | Confidence: {finding.get('confidence', 0)*100:.0f}%
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -398,11 +404,16 @@ def render_agent_progress(agent_updates: list):
             status_icon = ''
             status_class = ''
         
+        # Escape data-derived text before embedding in raw HTML.
+        agent_name = html.escape(str(agent_info.get('name', update['agent'])))
+        message = html.escape(str(update.get('message', '')))
+        agent_icon = agent_info.get('icon', '🔄')
+
         st.markdown(f"""
         <div class="progress-step {status_class}">
             <span style="margin-right: 0.5rem;">{status_icon}</span>
-            <span style="margin-right: 0.5rem;">{agent_info.get('icon', '🔄')}</span>
-            <span>{agent_info.get('name', update['agent'])}: {update['message']}</span>
+            <span style="margin-right: 0.5rem;">{agent_icon}</span>
+            <span>{agent_name}: {message}</span>
         </div>
         """, unsafe_allow_html=True)
 
