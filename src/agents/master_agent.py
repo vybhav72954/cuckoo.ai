@@ -8,7 +8,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 import json
 
-from .base_agent import BaseAgent, AgentResult, AgentStatus, ResearchQuery, AgentOrchestrator
+from .base_agent import AgentResult, AgentStatus, ResearchQuery
 from .research_agents import create_all_agents
 from config import Config, recommendation_for, PROCEED_THRESHOLD, CAUTION_THRESHOLD
 
@@ -123,13 +123,7 @@ class MasterAgent:
     """
     
     def __init__(self):
-        self.orchestrator = AgentOrchestrator()
         self.agents = create_all_agents()
-        
-        # Register all agents
-        for agent_id, agent in self.agents.items():
-            self.orchestrator.register_agent(agent_id, agent)
-        
         self.current_execution: Optional[Dict] = None
         self.execution_log: List[Dict] = []
         
