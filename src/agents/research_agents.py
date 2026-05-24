@@ -41,6 +41,12 @@ def _normalize_key_findings(raw):
     return normalized
 
 
+# Indications for which the seeded metformin_inflammation dataset is a valid stand-in.
+# The fallback is scoped to these so a Metformin query for an unrelated indication
+# (e.g. Oncology) doesn't silently receive anti-inflammatory data.
+_METFORMIN_FALLBACK_INDICATIONS = {"inflammation", "anti-inflammatory"}
+
+
 class InternalKnowledgeAgent(BaseAgent):
     """Agent that searches institutional memory and archived reports"""
     
@@ -164,7 +170,8 @@ class ClinicalTrialsAgent(BaseAgent):
         trials = mock_data.get("clinical_trials", {}).get(key, [])
         
         # If no exact match, try molecule + inflammation
-        if not trials and query.molecule.lower() == "metformin":
+        if (not trials and query.molecule.lower() == "metformin"
+                and query.indication.lower() in _METFORMIN_FALLBACK_INDICATIONS):
             trials = mock_data.get("clinical_trials", {}).get("metformin_inflammation", [])
         
         # Analyze trials
@@ -489,14 +496,16 @@ class WebIntelligenceAgent(BaseAgent):
         lit_key = f"{query.molecule.lower()}_{query.indication.lower().replace('-', '_').replace(' ', '_')}"
         literature = mock_data.get("literature", {}).get(lit_key, [])
         
-        if not literature and query.molecule.lower() == "metformin":
+        if (not literature and query.molecule.lower() == "metformin"
+                and query.indication.lower() in _METFORMIN_FALLBACK_INDICATIONS):
             literature = mock_data.get("literature", {}).get("metformin_inflammation", [])
         
         # Get regulatory guidelines
         reg_key = f"{query.molecule.lower()}_{query.indication.lower().replace('-', '_').replace(' ', '_')}"
         guidelines = mock_data.get("regulatory_guidelines", {}).get(reg_key, [])
         
-        if not guidelines and query.molecule.lower() == "metformin":
+        if (not guidelines and query.molecule.lower() == "metformin"
+                and query.indication.lower() in _METFORMIN_FALLBACK_INDICATIONS):
             guidelines = mock_data.get("regulatory_guidelines", {}).get("metformin_inflammation", [])
         
         high_impact = [l for l in literature if l.get("citations", 0) > 100]
