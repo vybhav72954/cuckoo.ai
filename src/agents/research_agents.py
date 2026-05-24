@@ -499,7 +499,23 @@ class WebIntelligenceAgent(BaseAgent):
         if not guidelines and query.molecule.lower() == "metformin":
             guidelines = mock_data.get("regulatory_guidelines", {}).get("metformin_inflammation", [])
         
-        # Generate news items (simulated)
+        high_impact = [l for l in literature if l.get("citations", 0) > 100]
+        has_evidence = bool(literature or guidelines)
+
+        # Derive insights from what was actually found — never assert positives
+        # unconditionally.
+        insights = []
+        if literature:
+            insights.append(f"Found {len(literature)} relevant publications")
+            if high_impact:
+                insights.append("Strong mechanistic rationale in high-impact peer-reviewed literature")
+        else:
+            insights.append("No relevant publications found")
+        if guidelines:
+            insights.append("Regulatory pathway appears feasible via 505(b)(2)")
+
+        # Simulated news / sentiment / KOLs only when there is underlying coverage,
+        # so a molecule with no data doesn't get fabricated positive signals.
         news = [
             {
                 "title": f"New research highlights {query.molecule}'s potential in {query.indication}",
@@ -508,31 +524,32 @@ class WebIntelligenceAgent(BaseAgent):
                 "sentiment": "Positive"
             },
             {
-                "title": f"FDA signals openness to repurposing strategies for established drugs",
+                "title": "FDA signals openness to repurposing strategies for established drugs",
                 "source": "Reuters Health",
                 "date": "2024-10-28",
                 "sentiment": "Positive"
             }
-        ]
-        
+        ] if has_evidence else []
+        sentiment_summary = "Generally Positive" if has_evidence else "Insufficient data"
+        key_opinion_leaders = (
+            ["Dr. Nir Barzilai (TAME Trial)", "Dr. David Sinclair (Aging Research)"]
+            if literature else []
+        )
+
         execution_time = (time.time() - start_time) * 1000
         self.status = AgentStatus.COMPLETED
         self.last_run = datetime.now()
-        
+
         return self._create_result(
             data={
                 "literature": literature,
                 "total_publications": len(literature),
-                "high_impact_papers": [l for l in literature if l.get("citations", 0) > 100],
+                "high_impact_papers": high_impact,
                 "regulatory_guidelines": guidelines,
                 "recent_news": news,
-                "sentiment_summary": "Generally Positive",
-                "key_opinion_leaders": ["Dr. Nir Barzilai (TAME Trial)", "Dr. David Sinclair (Aging Research)"],
-                "insights": [
-                    f"Found {len(literature)} relevant publications",
-                    "Strong mechanistic rationale in peer-reviewed literature",
-                    "Regulatory pathway appears feasible via 505(b)(2)"
-                ]
+                "sentiment_summary": sentiment_summary,
+                "key_opinion_leaders": key_opinion_leaders,
+                "insights": insights
             },
             execution_time=execution_time,
             confidence=0.8,
