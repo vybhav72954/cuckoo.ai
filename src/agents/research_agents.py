@@ -27,6 +27,20 @@ def load_archived_reports():
     return {"reports": [], "semantic_index": {}}
 
 
+def _normalize_key_findings(raw):
+    """Coerce an archived report's key_findings into a list of dicts so downstream
+    synthesis can rely on dict access. Drops None, wraps scalars, ignores non-lists."""
+    if not isinstance(raw, list):
+        return []
+    normalized = []
+    for item in raw:
+        if isinstance(item, dict):
+            normalized.append(item)
+        elif item is not None:
+            normalized.append({"finding": str(item)})
+    return normalized
+
+
 class InternalKnowledgeAgent(BaseAgent):
     """Agent that searches institutional memory and archived reports"""
     
@@ -68,7 +82,7 @@ class InternalKnowledgeAgent(BaseAgent):
                     "recommendation": report.get("recommendation", ""),
                     "score": score.get("overall", 0),
                     "scores": score,
-                    "key_findings": report.get("key_findings", []),
+                    "key_findings": _normalize_key_findings(report.get("key_findings")),
                     "relevance": "High" if query.molecule.lower() in [t.lower() for t in report.get("tags", [])] else "Medium"
                 })
         

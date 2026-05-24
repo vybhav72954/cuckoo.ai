@@ -46,7 +46,10 @@ _CONFIDENCE_LABELS = {"high": 0.9, "medium": 0.7, "low": 0.5}
 
 def _confidence_to_float(value, default: float = 0.6) -> float:
     if isinstance(value, (int, float)):
-        return float(value)
+        v = float(value)
+        if v > 1:  # percent-like (e.g. 85) -> fraction
+            v /= 100
+        return max(0.0, min(1.0, v))
     return _CONFIDENCE_LABELS.get(str(value).strip().lower(), default)
 
 
@@ -444,15 +447,19 @@ class MasterAgent:
             trials = clinical.data.get("total_trials", 0)
             clinical_line = (f"- {trials} relevant clinical trials identified, indicating "
                              f"{'strong' if trials > 3 else 'growing'} research interest")
-        else:
+        elif clinical and clinical.status == AgentStatus.CACHED:
             clinical_line = "- Clinical evidence drawn from prior research on file"
+        else:
+            clinical_line = "- No clinical trial data available"
 
         iqvia = results.get("iqvia_insights")
         if iqvia and iqvia.status == AgentStatus.COMPLETED:
             market_size = iqvia.data.get("market_size_2024", 0)
             market_line = f"- Current market size: ${market_size/1e9:.1f}B with expansion potential"
-        else:
+        elif iqvia and iqvia.status == AgentStatus.CACHED:
             market_line = "- Market sizing reused from prior research on file"
+        else:
+            market_line = "- No market sizing data available"
 
         summary = f"""
 **Opportunity Assessment: {query.molecule} for {query.indication}**
