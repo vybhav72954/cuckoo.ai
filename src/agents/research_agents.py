@@ -508,7 +508,7 @@ class WebIntelligenceAgent(BaseAgent):
                 and query.indication.lower() in _METFORMIN_FALLBACK_INDICATIONS):
             guidelines = mock_data.get("regulatory_guidelines", {}).get("metformin_inflammation", [])
         
-        high_impact = [l for l in literature if l.get("citations", 0) > 100]
+        high_impact = [paper for paper in literature if paper.get("citations", 0) > 100]
         has_evidence = bool(literature or guidelines)
 
         # Derive insights from what was actually found — never assert positives
@@ -540,10 +540,10 @@ class WebIntelligenceAgent(BaseAgent):
             }
         ] if has_evidence else []
         sentiment_summary = "Generally Positive" if has_evidence else "Insufficient data"
-        key_opinion_leaders = (
-            ["Dr. Nir Barzilai (TAME Trial)", "Dr. David Sinclair (Aging Research)"]
-            if literature else []
-        )
+        # Derive KOLs from literature author metadata where present — no fabricated
+        # names. The current mock literature has no author field, so this is empty;
+        # it will populate once real literature / Bloomberg metadata is wired in.
+        key_opinion_leaders = [paper["author"] for paper in literature if paper.get("author")]
 
         execution_time = (time.time() - start_time) * 1000
         self.status = AgentStatus.COMPLETED
