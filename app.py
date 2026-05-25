@@ -291,12 +291,24 @@ def render_sidebar():
         
         agents_selected = {}
         for agent_id, agent_info in AGENTS.items():
-            if agent_id != 'master':
-                agents_selected[agent_id] = st.checkbox(
-                    f"{agent_info['icon']} {agent_info['name']}",
+            if agent_id == 'master':
+                continue
+            if agent_id == 'internal_knowledge':
+                # Read-Before-Write always runs first — show it but don't let it be
+                # toggled (unchecking it previously had no effect).
+                st.checkbox(
+                    f"{agent_info['icon']} {agent_info['name']} (always on)",
                     value=True,
+                    disabled=True,
                     key=f"agent_{agent_id}"
                 )
+                agents_selected[agent_id] = True
+                continue
+            agents_selected[agent_id] = st.checkbox(
+                f"{agent_info['icon']} {agent_info['name']}",
+                value=True,
+                key=f"agent_{agent_id}"
+            )
         
         st.markdown("---")
         
